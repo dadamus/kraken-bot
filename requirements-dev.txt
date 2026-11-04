@@ -1,4 +1,3 @@
--r kraken_bot/requirements.txt
 pytest
 jinja2
 pyyaml

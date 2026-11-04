@@ -217,7 +217,7 @@ Taxes: selling crypto is usually a taxable event. Keep your Kraken trade history
 ## Development and tests
 
 ```bash
-pip install -r requirements-dev.txt
+pip install -r kraken_bot/requirements.txt -r requirements-dev.txt
 python -m pytest tests -q
 ```
 
