@@ -130,6 +130,14 @@ MESSAGES = {
     "no_entry_price": {"en": "  WARNING: {pair} has no purchase price - fixed stop-loss/take-profit inactive (set it in entry_prices)",
                        "pl": "  UWAGA: {pair} brak ceny zakupu - stały stop-loss/take-profit nieaktywne (wpisz ją w entry_prices)"},
     "balance_line": {"en": "  Kraken balance: {eur:,.2f} EUR + {coins}", "pl": "  Kraken saldo: {eur:,.2f} EUR + {coins}"},
+    "cash_flow_line": {"en": "  {kind}: {amount:+.8g} {asset} ({eur:+,.2f} EUR) - return reference moved to {start:,.2f} EUR",
+                       "pl": "  {kind}: {amount:+.8g} {asset} ({eur:+,.2f} EUR) - punkt odniesienia wyniku przesunięty na {start:,.2f} EUR"},
+    "cash_flow_deposit": {"en": "Deposit", "pl": "Wpłata"},
+    "cash_flow_withdrawal": {"en": "Withdrawal", "pl": "Wypłata"},
+    "ledger_failed": {"en": "  WARNING: could not read deposits/withdrawals ({err}) - give the API key the "
+                            "\"Query Ledger Entries\" permission, otherwise a deposit shows up as profit",
+                      "pl": "  UWAGA: nie udało się odczytać wpłat/wypłat ({err}) - nadaj kluczowi API uprawnienie "
+                            "\"Query Ledger Entries\", inaczej wpłata wygląda jak zysk"},
     "entry_source_history": {"en": "trade history", "pl": "historia transakcji"},
     "entry_source_manual": {"en": "manual", "pl": "ręcznie"},
     "entry_source_history+manual": {"en": "history + manual", "pl": "historia + ręcznie"},
@@ -843,6 +851,40 @@ def kraken_trades(max_pages=10):
     return sorted(trades, key=lambda x: float(x["time"]))
 
 
+def kraken_ledger(since, max_pages=10):
+    """Deposits and withdrawals booked after `since` (unix time), oldest first."""
+    entries = []
+    for kind in ("deposit", "withdrawal"):
+        ofs = 0
+        for _ in range(max_pages):  # Kraken returns 50 entries per page
+            res = kraken_private("/0/private/Ledgers", {"type": kind, "start": since, "ofs": ofs})
+            page = list(res["ledger"].values())
+            entries += page
+            ofs += len(page)
+            if not page or ofs >= int(res["count"]):
+                break
+    return sorted(entries, key=lambda x: float(x["time"]))
+
+
+def apply_cash_flows(state, info, prices, entries):
+    """Moves the return/drawdown reference (start_eur) by money deposited or withdrawn, so a deposit
+    is not counted as profit. Coins are valued at the current price; other assets are ignored."""
+    quote = next(iter(info.values()))["quote"]
+    value = {quote: 1.0, **{i["base"]: prices[p] for p, i in info.items()}}
+    for x in entries:
+        state["ledger_checked"] = max(state["ledger_checked"], float(x["time"]))
+        if x["type"] not in ("deposit", "withdrawal") or x["asset"] not in value:
+            continue
+        amount = float(x["amount"]) - float(x.get("fee") or 0)  # how much the balance changed
+        eur = amount * value[x["asset"]]
+        state["start_eur"] = round(state["start_eur"] + eur, 2)
+        state.setdefault("cash_flows", []).append(
+            {"time": datetime.fromtimestamp(float(x["time"])).strftime("%Y-%m-%d %H:%M"),
+             "type": x["type"], "asset": x["asset"], "amount": amount, "eur": round(eur, 2)})
+        print(t("cash_flow_line", kind=t(f"cash_flow_{x['type']}"), amount=amount, asset=x["asset"],
+                eur=eur, start=state["start_eur"]))
+
+
 def manual_entry_prices(cfg):
     """Purchase prices entered by hand (config.json "entry_prices" or the add-on option) - for coins
     bought outside the trade history, e.g. via "Buy crypto" in the app or deposited from elsewhere."""
@@ -908,6 +950,13 @@ def sync_live(cfg, state, prices):
                                     "stop_price": old_stop if coin >= min_coin else None}
     if not state.get("synced_at"):  # first live start: the reference point for return and drawdown
         state["start_eur"] = round(equity_of(state, prices), 2)
+    if not state.get("ledger_checked"):  # only flows after this moment move the reference point
+        state["ledger_checked"] = time.time()
+    else:
+        try:
+            apply_cash_flows(state, info, prices, kraken_ledger(state["ledger_checked"]))
+        except Exception as e:
+            print(t("ledger_failed", err=e))
     state["synced_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
     print(t("balance_line", eur=state["eur"],
             coins=", ".join(f"{p} {state['positions'][p]['coin']:.8f}" for p in info)))

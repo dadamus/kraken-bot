@@ -192,7 +192,8 @@ conclusions; the pairs are strongly correlated.
 ## Going live (after a few weeks of paper trading)
 
 1. Kraken → Settings → API → create a key with **Query Funds**, **Query Open Orders & Trades**,
-   **Query Closed Orders & Trades** and **Create & Modify Orders**. **Never Withdraw Funds.**
+   **Query Closed Orders & Trades**, **Query Ledger Entries** and **Create & Modify Orders**.
+   **Never Withdraw Funds.**
 2. Put the keys into the add-on options (or `.env`), set `"mode": "live"` in `config.json`, enable the
    `live` option (or `LIVE=true`). Keep `"live_validate_only": true` at first: Kraken validates the orders
    but does not place them, and the log says "validation only".
@@ -202,6 +203,10 @@ conclusions; the pairs are strongly correlated.
 In live mode the bot reads the real EUR and coin balances at the start of every cycle and refresh, and
 computes the entry price from the trade history (last 500 trades). Live state and log are separate:
 `state_live.json`, `decisions_live.csv`. The return is measured from the equity at the first sync.
+Deposits and withdrawals (EUR and coins of the configured pairs) are read from the Kraken ledger and move
+that reference point, so money you add is not counted as profit and money you take out is not a loss
+(nor does it trigger the drawdown halt). This needs the **Query Ledger Entries** permission; without it
+the log warns on every sync. Recorded flows are kept in `cash_flows` in `state_live.json`.
 
 **Important:** the bot treats the whole EUR balance and all coins of the configured pairs on the account
 as its own and may sell them (e.g. on a stop-loss). Use a dedicated Kraken account or sub-account, or

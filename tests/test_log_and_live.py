@@ -1,6 +1,7 @@
 """The decision log, context for the model and talking to Kraken (no network - everything is faked)."""
 import csv
 import json
+import time
 
 import pytest
 
@@ -90,11 +91,19 @@ def test_unknown_entry_without_manual_price():
 # ---------------------------------------------------------------- syncing with Kraken
 @pytest.fixture
 def fake_kraken(monkeypatch):
-    k = {"balance": {"ZEUR": "50.5", "XXBT": "0.01"}, "trades": [], "orders": []}
+    k = {"balance": {"ZEUR": "50.5", "XXBT": "0.01"}, "trades": [], "orders": [], "ledger": [],
+         "ledger_calls": []}
 
     def private(path, data):
         if path.endswith("Balance"):
             return k["balance"]
+        if path.endswith("Ledgers"):
+            if k.get("ledger_error"):
+                raise RuntimeError("Kraken: ['EGeneral:Permission denied']")
+            k["ledger_calls"].append(data)
+            rows = [x for x in k["ledger"] if x["type"] == data["type"] and float(x["time"]) > data["start"]]
+            page = rows[data["ofs"]:data["ofs"] + 50]
+            return {"ledger": {f"L{data['ofs'] + n}": x for n, x in enumerate(page)}, "count": len(rows)}
         if path.endswith("AddOrder"):
             if k.get("reject"):
                 raise RuntimeError("Kraken: EOrder:Insufficient funds")
@@ -123,6 +132,58 @@ def test_sync_uses_real_balance_and_keeps_stop(cfg, fake_kraken):
     bot.sync_live(cfg, state, {"XBTEUR": 70000.0})
     assert state["positions"]["XBTEUR"]["stop_price"] is None
     assert state["start_eur"] == start  # later syncs leave it alone
+
+
+def ledger(kind, asset, amount, at, fee="0"):
+    return {"type": kind, "asset": asset, "amount": str(amount), "fee": fee, "time": at}
+
+
+def test_deposit_and_withdrawal_move_reference_not_profit(cfg, fake_kraken, capsys):
+    cfg["pairs"], cfg["entry_prices"] = ["XBTEUR"], {"XBTEUR": 60000}
+    state = make_state()
+    bot.sync_live(cfg, state, {"XBTEUR": 70000.0})  # first sync: reference 750.5, nothing read yet
+    assert fake_kraken["ledger_calls"] == []
+    since = state["ledger_checked"]
+
+    fake_kraken["ledger"] = [ledger("deposit", "ZEUR", 100, since - 60),  # before the bot started: ignored
+                             ledger("deposit", "ZEUR", 100.5, since + 10, fee="0.5"),
+                             ledger("withdrawal", "ZEUR", -20, since + 20, fee="0.35"),
+                             ledger("deposit", "XXBT", 0.001, since + 30),
+                             ledger("deposit", "XDG", 500, since + 40)]  # not a traded pair: ignored
+    fake_kraken["balance"] = {"ZEUR": "130.15", "XXBT": "0.011"}
+    bot.sync_live(cfg, state, {"XBTEUR": 70000.0})
+
+    assert state["start_eur"] == pytest.approx(750.5 + 100 - 20.35 + 70)
+    assert bot.equity_of(state, {"XBTEUR": 70000.0}) == pytest.approx(state["start_eur"])  # no fake profit
+    assert [f["type"] for f in state["cash_flows"]] == ["deposit", "withdrawal", "deposit"]
+    assert state["ledger_checked"] == since + 40
+    assert "Deposit: +100 ZEUR" in capsys.readouterr().out
+
+    start = state["start_eur"]
+    bot.sync_live(cfg, state, {"XBTEUR": 70000.0})  # the same entries are not counted twice
+    assert state["start_eur"] == start
+
+
+def test_existing_state_starts_tracking_flows_from_now(cfg, fake_kraken):
+    cfg["pairs"] = ["XBTEUR"]
+    state = make_state()
+    state["synced_at"], state["start_eur"] = "2026-11-04 08:05", 500.0  # live before this feature
+    fake_kraken["ledger"] = [ledger("deposit", "ZEUR", 100, time.time() - 3600)]  # already in start_eur
+    bot.sync_live(cfg, state, {"XBTEUR": 70000.0})
+    bot.sync_live(cfg, state, {"XBTEUR": 70000.0})
+    assert state["start_eur"] == 500.0
+
+
+def test_missing_ledger_permission_only_warns(cfg, fake_kraken, capsys):
+    cfg["pairs"] = ["XBTEUR"]
+    state = make_state()
+    bot.sync_live(cfg, state, {"XBTEUR": 70000.0})
+    since, start = state["ledger_checked"], state["start_eur"]
+    fake_kraken["ledger_error"] = True
+    bot.sync_live(cfg, state, {"XBTEUR": 70000.0})
+    assert "Query Ledger Entries" in capsys.readouterr().out
+    assert state["eur"] == 50.5 and state["start_eur"] == start
+    assert state["ledger_checked"] == since  # once the permission is added, nothing is missed
 
 
 def test_sync_ignores_implausible_manual_price(cfg, fake_kraken, monkeypatch):

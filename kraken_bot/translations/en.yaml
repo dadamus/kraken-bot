@@ -4,7 +4,7 @@ configuration:
     description: Key from console.anthropic.com. Used once a day for the market assessment.
   kraken_api_key:
     name: Kraken API key
-    description: Only needed for live mode. Permissions - Query Funds, Query Open Orders & Trades, Query Closed Orders & Trades, Create & Modify Orders. Never Withdraw Funds.
+    description: Only needed for live mode. Permissions - Query Funds, Query Open Orders & Trades, Query Closed Orders & Trades, Query Ledger Entries, Create & Modify Orders. Never Withdraw Funds.
   kraken_api_secret:
     name: Kraken API secret
     description: Only needed for live mode.

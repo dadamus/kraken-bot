@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.0
+- Live mode: deposits and withdrawals are read from the Kraken ledger and move the return/drawdown
+  reference point, so adding money no longer shows up as profit. Give the API key the
+  **Query Ledger Entries** permission (otherwise the log only warns). Flows are tracked from the first
+  sync after the update; adjust `start_eur` by hand for earlier ones.
+
 ## 2.0.0
 - First public release: English by default, Polish as an option (`language`).
 - Home Assistant entity IDs are now English: `sensor.kraken_bot_equity`, `_return`, `_free_eur`,

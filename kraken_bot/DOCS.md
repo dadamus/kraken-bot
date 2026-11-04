@@ -23,7 +23,7 @@ https://github.com/dadamus/kraken-bot
 | Option | Meaning |
 |---|---|
 | `anthropic_api_key` | Key from console.anthropic.com |
-| `kraken_api_key` / `kraken_api_secret` | Live mode only. Never give the key the "Withdraw Funds" permission |
+| `kraken_api_key` / `kraken_api_secret` | Live mode only. Permissions: Query Funds, Query Open Orders & Trades, Query Closed Orders & Trades, Query Ledger Entries (deposits/withdrawals are not counted as profit), Create & Modify Orders. Never "Withdraw Funds" |
 | `language` | `en` or `pl`: logs, entity names, notifications and the model's reasoning |
 | `run_time` | Time of the daily cycle (HH:MM, local) |
 | `ha_refresh_minutes` | How often stops are checked and entities refreshed (no model calls) |

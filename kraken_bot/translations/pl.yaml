@@ -4,7 +4,7 @@ configuration:
     description: Klucz z console.anthropic.com. Używany raz dziennie do oceny rynku.
   kraken_api_key:
     name: Klucz API Kraken
-    description: Potrzebny tylko w trybie live. Uprawnienia - Query Funds, Query Open Orders & Trades, Query Closed Orders & Trades, Create & Modify Orders. Nigdy Withdraw Funds.
+    description: Potrzebny tylko w trybie live. Uprawnienia - Query Funds, Query Open Orders & Trades, Query Closed Orders & Trades, Query Ledger Entries, Create & Modify Orders. Nigdy Withdraw Funds.
   kraken_api_secret:
     name: Sekret API Kraken
     description: Potrzebny tylko w trybie live.

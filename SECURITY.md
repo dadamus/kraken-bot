@@ -46,7 +46,7 @@ Anything that could expose or misuse a user's credentials or funds, for example:
 ## Keeping your setup safe
 
 - Create the Kraken API key with **Query Funds, Query Open Orders & Trades, Query Closed Orders &
-  Trades and Create & Modify Orders only. Never enable Withdraw Funds.** Consider restricting the key
+  Trades, Query Ledger Entries and Create & Modify Orders only. Never enable Withdraw Funds.** Consider restricting the key
   to your server's IP address in Kraken's API settings.
 - Use a dedicated Kraken account or sub-account that holds only the money meant for the bot.
 - Keep keys in the add-on options or in `.env`. Never commit `.env`, `data/`, state or decision logs;
