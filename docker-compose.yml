@@ -1,0 +1,9 @@
+# Standalone run without Home Assistant:  cp .env.example .env  (fill it in), then  docker compose up -d --build
+services:
+  kraken-bot:
+    build: ./kraken_bot
+    container_name: kraken-bot
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/config   # config.json, state, decision log - created on first start

@@ -1,0 +1,34 @@
+{
+  "mode": "paper",
+  "language": "en",
+  "pairs": ["XBTEUR", "ETHEUR", "SOLEUR"],
+  "model": "claude-opus-5-5",
+  "effort": "high",
+  "paper_start_eur": 1000,
+  "fee_pct": 0.4,
+  "slippage_pct": 0.1,
+  "live_validate_only": true,
+  "risk": {
+    "min_confidence": 0.65,
+    "max_trade_eur": 200,
+    "min_trade_eur": 10,
+    "max_exposure_pct": 60,
+    "max_exposure_per_pair_pct": 30,
+    "stop_loss_pct": 8,
+    "take_profit_pct": 15,
+    "max_drawdown_pct": 20,
+    "halt_days": 7,
+    "intraday_stops": true
+  },
+  "entry_prices": {},
+  "news_feeds": [
+    "https://www.coindesk.com/arc/outboundfeeds/rss/",
+    "https://cointelegraph.com/rss",
+    "https://decrypt.co/feed"
+  ],
+  "home_assistant": {
+    "enabled": true,
+    "url": "http://homeassistant.local:8123",
+    "notify": ""
+  }
+}

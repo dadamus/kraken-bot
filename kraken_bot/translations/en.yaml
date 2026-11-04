@@ -1,0 +1,25 @@
+configuration:
+  anthropic_api_key:
+    name: Anthropic API key
+    description: Key from console.anthropic.com. Used once a day for the market assessment.
+  kraken_api_key:
+    name: Kraken API key
+    description: Only needed for live mode. Permissions - Query Funds, Query Open Orders & Trades, Query Closed Orders & Trades, Create & Modify Orders. Never Withdraw Funds.
+  kraken_api_secret:
+    name: Kraken API secret
+    description: Only needed for live mode.
+  language:
+    name: Language
+    description: Language of logs, Home Assistant entity names, notifications and the model's reasoning.
+  run_time:
+    name: Daily cycle time
+    description: Time (HH:MM, local) of the daily analysis and trading cycle.
+  ha_refresh_minutes:
+    name: Refresh interval (minutes)
+    description: How often stop-loss / take-profit are checked on the current price and Home Assistant entities refreshed. No model calls.
+  live:
+    name: Live mode
+    description: Trade on the real Kraken balance. Also requires "mode" set to "live" in config.json. With live_validate_only (the default) orders are only validated.
+  entry_prices:
+    name: Purchase prices
+    description: Average purchase price in EUR per 1 coin for coins bought outside the bot (e.g. in the Kraken app). Needed for the fixed stop-loss / take-profit. 0 = unknown.

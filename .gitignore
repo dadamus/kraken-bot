@@ -1,0 +1,15 @@
+# secrets and personal trading data - never commit
+.env
+data/
+config.json
+!kraken_bot/config.example.json
+state*.json
+decisions*.csv
+.last_run
+
+# Python / tools
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+.claude/

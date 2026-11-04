@@ -1,0 +1,192 @@
+# Dashboard Home Assistant (wersja polska). Wklej CAŁY plik:
+# Ustawienia -> Dashboardy -> (dashboard) -> ołówek -> ⋮ -> Edytor kodu (raw) -> zastąp całą zawartość -> Zapisz.
+# Układ "sekcje": na szerokim ekranie portfel | pozycje i decyzja, pod spodem skuteczność i dziennik.
+# Ustaw w dodatku język "pl", żeby nazwy encji, uzasadnienia i reguły też były po polsku.
+title: Kraken bot
+views:
+  - title: Kraken bot
+    path: kraken-bot
+    icon: mdi:robot
+    type: sections
+    max_columns: 3
+    sections:
+      # ------------------------------------------------------------------ portfel
+      - type: grid
+        cards:
+          - type: heading
+            heading: Portfel
+            icon: mdi:wallet
+            badges:
+              - type: entity
+                entity: sensor.kraken_bot_equity
+                icon: mdi:robot
+                state_content: mode
+              - type: entity
+                entity: sensor.kraken_bot_equity
+                icon: mdi:update
+                state_content: updated
+          - type: tile
+            entity: sensor.kraken_bot_equity
+            name: Kapitał
+            color: blue
+          - type: tile
+            entity: sensor.kraken_bot_free_eur
+            name: Wolne EUR
+            color: grey
+          - type: sensor
+            entity: sensor.kraken_bot_return
+            name: Wynik od startu
+            graph: line
+            hours_to_show: 168
+            detail: 2
+            grid_options:
+              columns: full
+          - type: tile
+            entity: sensor.kraken_bot_performance
+            name: Trafność prognoz 3d
+            icon: mdi:bullseye-arrow
+            color: purple
+            grid_options:
+              columns: full
+
+      # ------------------------------------------------------------------ pozycje i decyzja
+      - type: grid
+        column_span: 2
+        cards:
+          - type: heading
+            heading: Pozycje
+            icon: mdi:chart-areaspline
+          - type: markdown
+            grid_options:
+              columns: full
+            content: |
+              {%- macro num(x, d=0) -%}{{ ('{:,.' ~ d ~ 'f}').format(x | float(0)).replace(',', ' ') }}{%- endmacro -%}
+              {%- macro pct(x) -%}
+              {%- if x is none or x == '' -%}–
+              {%- elif x | float(0) >= 0 -%}<font color="#2e7d32">▲ {{ '%.2f' | format(x | float) }}%</font>
+              {%- else -%}<font color="#c62828">▼ {{ '%.2f' | format(x | float | abs) }}%</font>
+              {%- endif -%}
+              {%- endmacro -%}
+              | | wartość | wynik pozycji | cena | wejście | stop | kup i trzymaj |
+              |:--|--:|--:|--:|--:|--:|--:|
+              {%- for pair, name in [('xbteur', 'BTC'), ('etheur', 'ETH'), ('soleur', 'SOL')] %}
+              {%- set e = 'sensor.kraken_bot_' ~ pair %}
+              {%- set coin = state_attr(e, 'coin') | float(0) %}
+              {%- set entry = state_attr(e, 'entry_price') %}
+              {%- set stop = state_attr(e, 'stop_price') %}
+              {%- set price = state_attr(e, 'price') | float(0) %}
+              {%- if coin > 0 %}
+              | **{{ name }}** | **{{ num(states(e)) }} EUR** | {{ pct(state_attr(e, 'position_pnl_pct')) }} | {{ num(price, 2 if price < 1000 else 0) }} | {{ num(entry, 2 if price < 1000 else 0) if entry else '–' }} | {{ (num(stop, 2 if price < 1000 else 0) ~ ' <small>(' ~ '%.1f' | format((stop / price - 1) * 100) ~ '%)</small>') if stop else '–' }} | {{ pct(state_attr(e, 'buy_and_hold_pct')) }} |
+              {%- else %}
+              | {{ name }} | <font color="grey">brak</font> | | {{ num(price, 2 if price < 1000 else 0) }} | | | {{ pct(state_attr(e, 'buy_and_hold_pct')) }} |
+              {%- endif %}
+              {%- endfor %}
+
+          - type: heading
+            heading: Ostatnia decyzja
+            icon: mdi:robot-outline
+            badges:
+              - type: entity
+                entity: sensor.kraken_bot_decision
+                icon: mdi:clock-outline
+          - type: markdown
+            grid_options:
+              columns: full
+            content: |
+              {%- set d = 'sensor.kraken_bot_decision' %}
+              {%- set names = {'XBTEUR': 'BTC', 'ETHEUR': 'ETH', 'SOLEUR': 'SOL'} %}
+              {%- set icons = {'buy': '🟢', 'sell': '🔴', 'hold': '⚪', 'stop': '🛑'} %}
+              {%- set done = {'buy': '**kupiono**', 'sell': '**sprzedano**', 'none': 'bez zmian', 'error': '⚠️ **błąd zlecenia**'} %}
+              {%- set h = state_attr('sensor.kraken_bot_equity', 'halted_until') %}
+              {%- if h %}
+              ⚠️ **Handel wstrzymany do {{ h[:10] }}** (spadek kapitału)
+
+              {% endif %}
+              {{ state_attr(d, 'summary') or 'Brak decyzji - pojawi się po najbliższym cyklu.' }}
+              {% for r in state_attr(d, 'decisions') or [] %}
+              ---
+              {{ icons.get(r.model_action, '•') }} **{{ names.get(r.pair, r.pair) }}** · {{ r.model_action }}
+              · pewność {{ ((r.confidence | float(0)) * 100) | round }}%
+              {%- if r.get('p_up_3d') not in (none, '') %} · szansa wzrostu w 3 dni {{ ((r.p_up_3d | float) * 100) | round }}%{% endif %}
+              → {{ done.get(r.executed, r.executed) }}
+
+              > {{ r.reasoning }}
+
+              {%- if r.rule and not r.rule.startswith('model: hold') %}
+
+              <font color="grey">reguła: {{ r.rule }}</font>
+              {%- endif %}
+              {% endfor %}
+
+      # ------------------------------------------------------------------ skuteczność
+      - type: grid
+        column_span: 3
+        cards:
+          - type: heading
+            heading: Skuteczność
+            icon: mdi:scale-balance
+          - type: markdown
+            grid_options:
+              columns: full
+            content: |
+              {%- macro pct(x) -%}
+              {%- if x is none -%}–
+              {%- elif x >= 0 -%}<font color="#2e7d32">+{{ '%.2f' | format(x) }}%</font>
+              {%- else -%}<font color="#c62828">{{ '%.2f' | format(x) }}%</font>
+              {%- endif -%}
+              {%- endmacro -%}
+              {%- set e = 'sensor.kraken_bot_performance' %}
+              {%- set b = state_attr(e, 'bot') %}
+              {%- set s = state_attr(e, 'shadow') %}
+              {%- set c = state_attr(e, 'p_up_3d') %}
+              {%- if not b %}
+              Brak danych - pojawią się po najbliższym codziennym cyklu.
+              {%- else %}
+              **Czy bot bije proste strategie?** {% if s %}<font color="grey">(od {{ s.since }}, z opłatami)</font>{% endif %}
+
+              | strategia | wynik |
+              |:--|--:|
+              | 🤖 **bot** <font color="grey">(średnio {{ '%.0f' | format(b.avg_exposure_pct or 0) }}% kapitału w krypto)</font> | **{{ pct(b.return_pct) }}** |
+              {%- if s %}
+              | 📦 kup i trzymaj | {{ pct(s.buy_and_hold_pct) }} |
+              | 📈 trend ({{ s.trend_rule }}) | {{ pct(s.trend_pct) }} |
+              {%- endif %}
+
+              **Co robiła cena po ocenach modelu** <font color="grey">(średnia zmiana)</font>
+
+              | ocena | ile | po 1 dniu | po 3 dniach | po 7 dniach | wyżej po 3 dniach |
+              |:--|--:|--:|--:|--:|--:|
+              {%- for a, st in (state_attr(e, 'by_action') or {}).items() %}
+              | {{ {'buy': '🟢 buy', 'sell': '🔴 sell', 'hold': '⚪ hold'}.get(a, a) }} | {{ st.signals }} | {{ pct(st.avg_1d_pct) }} | {{ pct(st.avg_3d_pct) }} | {{ pct(st.avg_7d_pct) }} | {{ ('%.0f%%' | format(st.up_3d_pct) ~ ' <font color="grey">(z ' ~ st.settled_3d ~ ')</font>') if st.up_3d_pct is not none else '–' }} |
+              {%- endfor %}
+
+              **Prognozy „szansa wzrostu w 3 dni”:**
+              {%- if c.settled %}
+              trafność kierunku **{{ '%.0f' | format(c.hit_rate_pct or 0) }}%**, Brier **{{ c.brier }}** (0,25 = rzut monetą, mniej = lepiej), rozliczonych {{ c.settled }}.
+              {%- else %}
+              jeszcze nic do rozliczenia - pierwsze wyniki 3 dni po pierwszej prognozie.
+              {%- endif %}
+              {%- if c.settled < 30 %}
+
+              <font color="grey">Mniej niż 30 rozliczonych prognoz - na razie to głównie szum. Sensowne wnioski po ok. 1-2 miesiącach.</font>
+              {%- endif %}
+              {%- endif %}
+
+      # ------------------------------------------------------------------ dziennik
+      - type: grid
+        column_span: 3
+        cards:
+          - type: heading
+            heading: Dziennik decyzji
+            icon: mdi:format-list-bulleted
+          - type: markdown
+            grid_options:
+              columns: full
+            content: |
+              {%- set names = {'XBTEUR': 'BTC', 'ETHEUR': 'ETH', 'SOLEUR': 'SOL'} %}
+              {%- set icons = {'buy': '🟢', 'sell': '🔴', 'hold': '⚪', 'stop': '🛑'} %}
+              | kiedy | para | model | pewność | wzrost 3d | wykonano | reguła |
+              |:--|:--|:--|--:|--:|:--|:--|
+              {%- for r in ((state_attr('sensor.kraken_bot_decision', 'history') or []) | reverse | list)[:15] %}
+              | {{ r.date[5:] }} | {{ names.get(r.pair, r.pair) }} | {{ icons.get(r.model_action, '') }} {{ r.model_action }} | {{ ((r.confidence | float(0)) * 100) | round }}% | {{ (((r.p_up_3d | float) * 100) | round ~ '%') if r.get('p_up_3d') not in (none, '') else '–' }} | {{ ('**' ~ r.executed ~ '**') if r.executed in ('buy', 'sell', 'error') else '–' }} | <font color="grey">{{ r.rule }}</font> |
+              {%- endfor %}
