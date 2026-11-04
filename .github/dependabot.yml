@@ -1,0 +1,48 @@
+# Dependabot: weekly update PRs for everything the bot depends on. CI runs the tests on every PR.
+# Note: a merged update of kraken_bot/requirements.txt or kraken_bot/Dockerfile reaches Home Assistant
+# users only after the add-on version in kraken_bot/config.yaml is bumped.
+version: 2
+updates:
+  # runtime dependencies baked into the add-on image (anthropic, requests)
+  - package-ecosystem: pip
+    directory: /kraken_bot
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "deps"
+    groups:
+      runtime:
+        patterns: ["*"]
+
+  # test dependencies (pytest, jinja2, pyyaml)
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "deps(dev)"
+    groups:
+      dev:
+        patterns: ["*"]
+
+  # the python base image of the add-on
+  - package-ecosystem: docker
+    directory: /kraken_bot
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "deps(docker)"
+
+  # actions used by the CI workflow
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "ci"
+    groups:
+      actions:
+        patterns: ["*"]
