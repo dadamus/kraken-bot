@@ -248,6 +248,7 @@ On Windows with Git Bash, prefix it with `MSYS_NO_PATHCONV=1` and use `$(pwd -W)
 | `docker-compose.yml`, `.env.example` | Standalone Docker |
 | `repository.yaml` | Makes this repository installable from the Home Assistant add-on store |
 | `tests/` | pytest suite |
+| `SECURITY.md` | How to report a vulnerability |
 
 Data files (never committed): `config.json`, `state.json` / `state_live.json` (portfolio: free EUR and the
 position in each pair; delete to start over), `decisions.csv` / `decisions_live.csv` (decision log with the
