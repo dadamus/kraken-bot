@@ -8,8 +8,8 @@ jobs:
   tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - run: pip install -r kraken_bot/requirements.txt -r requirements-dev.txt
@@ -18,6 +18,6 @@ jobs:
   docker:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: docker build -t kraken-bot kraken_bot
       - run: docker run --rm kraken-bot python -c "import anthropic, requests, bot"
