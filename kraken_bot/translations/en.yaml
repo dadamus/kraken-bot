@@ -17,6 +17,9 @@ configuration:
   ha_refresh_minutes:
     name: Refresh interval (minutes)
     description: How often stop-loss / take-profit are checked on the current price and Home Assistant entities refreshed. No model calls.
+  stop_check_seconds:
+    name: Stop check (seconds)
+    description: How often the current price is compared with stop-loss / take-profit levels between refreshes (public price only, no model). A breached level sells right away instead of at the next refresh. 0 = off.
   live:
     name: Live mode
     description: Trade on the real Kraken balance. Also requires "mode" set to "live" in config.json. With live_validate_only (the default) orders are only validated.

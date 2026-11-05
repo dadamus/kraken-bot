@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.2.0
+- Stops react within seconds: between refreshes the add-on checks the public price every
+  `stop_check_seconds` (default 15) and sells as soon as a stop-loss / take-profit level is breached,
+  instead of waiting up to `ha_refresh_minutes`. Set it to 0 for the old behaviour.
+
 ## 2.1.0
 - Live mode: deposits and withdrawals are read from the Kraken ledger and move the return/drawdown
   reference point, so adding money no longer shows up as profit. Give the API key the

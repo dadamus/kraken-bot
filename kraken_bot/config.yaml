@@ -1,6 +1,6 @@
 # Home Assistant add-on definition. See README.md -> "Install as a Home Assistant add-on".
 name: Kraken bot
-version: "2.1.0"
+version: "2.2.0"
 slug: kraken_bot
 description: Experimental Claude-assisted crypto bot for Kraken (paper / live) with hard-coded risk rules
 url: https://github.com/dadamus/kraken-bot
@@ -20,6 +20,7 @@ options:
   language: en
   run_time: "08:05"
   ha_refresh_minutes: 15
+  stop_check_seconds: 15
   live: false
   entry_prices:
     - pair: XBTEUR
@@ -35,6 +36,7 @@ schema:
   language: list(en|pl)
   run_time: match(^([01]\d|2[0-3]):[0-5]\d$)
   ha_refresh_minutes: int(1,1440)
+  stop_check_seconds: int(0,300)?
   live: bool
   entry_prices:
     - pair: str

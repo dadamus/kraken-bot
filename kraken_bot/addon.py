@@ -5,7 +5,10 @@ Container entry point (Home Assistant add-on or standalone Docker): runs the bot
 - the full cycle (bot.py) once a day at run_time; if the container starts after that time and today's
   cycle has not run yet (e.g. after a restart), the cycle starts right away,
 - a refresh (bot.py --ha: stop-loss / take-profit on the current price + Home Assistant entities)
-  every refresh_minutes, and immediately after Home Assistant restarts.
+  every refresh_minutes, and immediately after Home Assistant restarts,
+- between refreshes a cheap price check every stop_check_seconds (public Ticker only): when a held pair
+  is at or beyond its stop / take-profit level the refresh runs at once instead of up to
+  refresh_minutes later.
 
 Options come from /data/options.json in the add-on, or from environment variables in standalone Docker.
 Bot data (config.json, state.json, decisions.csv) lives in /config: /addon_configs/<slug> in Home
@@ -23,10 +26,13 @@ from pathlib import Path
 
 import requests
 
+import bot  # protective_exit / fetch_price: the watcher uses exactly the guard's thresholds
+
 APP = Path(__file__).resolve().parent
 OPTIONS = Path(os.environ.get("ADDON_OPTIONS", "/data/options.json"))
 DATA = Path(os.environ.get("BOT_DATA_DIR", "/config"))
 LAST_RUN = DATA / ".last_run"
+WATCH_COOLDOWN = 120  # seconds between watcher-triggered refreshes (e.g. an order Kraken keeps rejecting)
 
 
 def env_bool(name, default=False):
@@ -46,6 +52,7 @@ def load_options():
             "kraken_api_secret": os.environ.get("KRAKEN_API_SECRET", ""),
             "run_time": os.environ.get("RUN_TIME", "08:05"),
             "refresh_minutes": int(os.environ.get("REFRESH_MINUTES", "15")),
+            "stop_check_seconds": int(os.environ.get("STOP_CHECK_SECONDS", "15")),
             "live": env_bool("LIVE"),
             "language": os.environ.get("BOT_LANGUAGE", "en"),
             "entry_prices": json.loads(os.environ.get("ENTRY_PRICES") or "{}")}
@@ -76,6 +83,33 @@ def ha_lost_states():
         return False
 
 
+def stop_hits(live):
+    """Pairs whose current price is at or beyond a stop / take-profit level. Reads the bot's own state and
+    config, asks only the public Ticker for held pairs; any error just means "nothing to do now"."""
+    try:
+        cfg = json.loads((DATA / "config.json").read_text(encoding="utf-8"))
+        if not cfg["risk"].get("intraday_stops", True):
+            return []
+        state = json.loads((DATA / ("state_live.json" if live else "state.json")).read_text(encoding="utf-8"))
+    except (OSError, ValueError, KeyError):
+        return []
+    validate = live and cfg.get("live_validate_only", True)
+    today = datetime.now().strftime("%Y-%m-%d")
+    fired = state.get("guard_fired", {})
+    hits = []
+    for pair, pos in state.get("positions", {}).items():
+        if pair not in cfg.get("pairs", []) or not pos.get("coin") or (validate and fired.get(pair) == today):
+            continue
+        try:
+            price = bot.fetch_price(pair)
+        except Exception:
+            continue
+        # dust below the minimum order cannot be sold - do not keep waking the refresh for it
+        if pos["coin"] * price >= cfg["risk"].get("min_trade_eur", 0) and bot.protective_exit(cfg, pos, price):
+            hits.append(f"{pair} {price:g}")
+    return hits
+
+
 def run(*args):
     print(f"[{datetime.now():%Y-%m-%d %H:%M}] bot.py {' '.join(args)}".rstrip(), flush=True)
     subprocess.run([sys.executable, "-u", str(APP / "bot.py"), *args])
@@ -100,23 +134,35 @@ def main():
 
     cycle_args = ["--live"] if opts.get("live") else []
     refresh = int(opts.get("refresh_minutes") or opts.get("ha_refresh_minutes") or 15)
+    watch = int(opts.get("stop_check_seconds", 15) or 0)
     print(f"Kraken bot: daily cycle at {opts['run_time']}, refresh every {refresh} min,"
+          f" stop check {'every ' + str(watch) + ' s' if watch else 'off'},"
           f" mode {'LIVE' if cycle_args else 'paper'}, language {os.environ['BOT_LANGUAGE']}", flush=True)
 
     run("--ha", *cycle_args)
     last_refresh = time.monotonic()
+    last_trigger = -WATCH_COOLDOWN
+    last_minute = datetime.now().strftime("%H:%M")
     while True:
         now = datetime.now()
         today = now.strftime("%Y-%m-%d")
+        minute = now.strftime("%H:%M")
+        new_minute, last_minute = minute != last_minute, minute
         done = LAST_RUN.read_text().strip() if LAST_RUN.exists() else ""
-        if now.strftime("%H:%M") >= opts["run_time"] and done != today:
+        if minute >= opts["run_time"] and done != today:
             LAST_RUN.write_text(today)  # written before the run: a failing cycle is not retried every minute
             run(*cycle_args)
             last_refresh = time.monotonic()
-        elif time.monotonic() - last_refresh >= refresh * 60 or ha_lost_states():
+        elif time.monotonic() - last_refresh >= refresh * 60 or (new_minute and ha_lost_states()):
             run("--ha", *cycle_args)
             last_refresh = time.monotonic()
-        time.sleep(60 - datetime.now().second)
+        elif watch and time.monotonic() - last_trigger >= WATCH_COOLDOWN:
+            hits = stop_hits(bool(cycle_args))
+            if hits:
+                print(f"[{now:%H:%M:%S}] stop / take-profit level reached: {', '.join(hits)}", flush=True)
+                run("--ha", *cycle_args)
+                last_refresh = last_trigger = time.monotonic()
+        time.sleep(watch if watch else 60 - datetime.now().second)
 
 
 if __name__ == "__main__":

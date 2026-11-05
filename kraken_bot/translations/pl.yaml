@@ -17,6 +17,9 @@ configuration:
   ha_refresh_minutes:
     name: Odświeżanie (minuty)
     description: Jak często sprawdzać stop-loss / take-profit na bieżącej cenie i odświeżać encje w Home Assistant. Bez zapytań do modelu.
+  stop_check_seconds:
+    name: Sprawdzanie stopów (sekundy)
+    description: Jak często między odświeżeniami porównywać bieżącą cenę z poziomami stop-loss / take-profit (tylko publiczna cena, bez modelu). Przebity poziom sprzedaje od razu, a nie przy następnym odświeżeniu. 0 = wyłączone.
   live:
     name: Tryb live
     description: Handel na prawdziwym saldzie Krakena. Wymaga też "mode" ustawionego na "live" w config.json. Przy live_validate_only (domyślnie) zlecenia są tylko walidowane.

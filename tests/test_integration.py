@@ -122,3 +122,47 @@ def test_existing_config_is_never_overwritten(container):
 
 def test_no_home_assistant_check_without_ha(container):
     assert addon.ha_lost_states() is False  # no HA_URL / HA_TOKEN -> no request at all
+
+
+# ---------------------------------------------------------------- addon.py: stop watcher between refreshes
+def watcher_files(container, cfg, positions, live=False, **state_extra):
+    data = container / "config"
+    data.mkdir(exist_ok=True)
+    (data / "config.json").write_text(json.dumps(cfg), encoding="utf-8")
+    state = {"eur": 0, "positions": positions, **state_extra}
+    (data / ("state_live.json" if live else "state.json")).write_text(json.dumps(state), encoding="utf-8")
+
+
+def test_watcher_finds_breached_stop(container, cfg, monkeypatch):
+    watcher_files(container, cfg, {"XBTEUR": {"coin": 1.0, "entry_price": 100.0, "stop_price": 95.0},
+                                   "ETHEUR": {"coin": 0.0, "entry_price": None}})
+    asked = []
+    monkeypatch.setattr(bot, "fetch_price", lambda pair: asked.append(pair) or 94.0)
+    assert addon.stop_hits(live=False) == ["XBTEUR 94"]
+    assert asked == ["XBTEUR"]  # pairs without coins are not even priced
+
+
+def test_watcher_quiet_above_stop_and_for_dust(container, cfg, monkeypatch):
+    watcher_files(container, cfg, {"XBTEUR": {"coin": 1.0, "entry_price": 100.0, "stop_price": 95.0},
+                                   "ETHEUR": {"coin": 0.00001, "entry_price": 100.0, "stop_price": 95.0}})
+    monkeypatch.setattr(bot, "fetch_price", lambda pair: 96.0 if pair == "XBTEUR" else 50.0)
+    assert addon.stop_hits(live=False) == []
+
+
+def test_watcher_skips_pair_already_fired_in_validation(container, cfg, monkeypatch):
+    cfg = {**cfg, "mode": "live"}
+    today = addon.datetime.now().strftime("%Y-%m-%d")
+    watcher_files(container, cfg, {"XBTEUR": {"coin": 1.0, "entry_price": 100.0, "stop_price": 95.0}},
+                  live=True, guard_fired={"XBTEUR": today})
+    monkeypatch.setattr(bot, "fetch_price", lambda pair: 90.0)
+    assert addon.stop_hits(live=True) == []
+
+
+def test_watcher_survives_missing_files_and_network(container, cfg, monkeypatch):
+    assert addon.stop_hits(live=False) == []  # no config / state yet
+    watcher_files(container, cfg, {"XBTEUR": {"coin": 1.0, "entry_price": 100.0, "stop_price": 95.0}})
+
+    def down(pair):
+        raise ConnectionError("no network")
+    monkeypatch.setattr(bot, "fetch_price", down)
+    assert addon.stop_hits(live=False) == []

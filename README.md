@@ -126,6 +126,7 @@ environment. Schedule `bot.py` daily and `bot.py --ha` every 15 minutes with cro
 | `language` | `BOT_LANGUAGE` | `en` | `en` or `pl`; overrides `language` in `config.json` |
 | `run_time` | `RUN_TIME` | `08:05` | Daily cycle (local time, `TZ`) |
 | `ha_refresh_minutes` | `REFRESH_MINUTES` | `15` | Stop-loss / take-profit check and entity refresh |
+| `stop_check_seconds` | `STOP_CHECK_SECONDS` | `15` | Cheap price check between refreshes; a breached stop / take-profit sells at once (`0` = off) |
 | `live` | `LIVE` | `false` | Trade on the real balance (also needs `"mode": "live"`) |
 | `entry_prices` | `ENTRY_PRICES` (JSON) | | Purchase price per 1 coin for coins bought outside the bot |
 
@@ -168,8 +169,10 @@ and no further than `stop_loss_pct`; without a level it uses 2 ATR. With an open
 only raise the stop, never lower it. Coins without a stop (e.g. bought outside the bot) get the first one
 the model gives. The fixed −8% stop from the entry price stays active as a backstop.
 
-These are not stop orders on the exchange: they are checked every `ha_refresh_minutes`, so in a fast
-crash, or while the bot is not running, the sale happens at a worse price.
+These are not stop orders on the exchange. The container compares the public price with the levels every
+`stop_check_seconds` (15 s by default) and sells with a market order as soon as one is breached; with that
+check off they are only checked every `ha_refresh_minutes`. In a fast crash, or while the bot is not
+running, the sale still happens below the level.
 
 **After a sale** the EUR stays on the account. Buying back is decided by the next daily cycle, within the
 limits above. The model sees the stop sales of the last 7 days and is told not to buy back without a new reason.

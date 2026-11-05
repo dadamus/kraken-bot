@@ -27,6 +27,7 @@ https://github.com/dadamus/kraken-bot
 | `language` | `en` or `pl`: logs, entity names, notifications and the model's reasoning |
 | `run_time` | Time of the daily cycle (HH:MM, local) |
 | `ha_refresh_minutes` | How often stops are checked and entities refreshed (no model calls) |
+| `stop_check_seconds` | Between refreshes, how often the price is compared with stop / take-profit levels; a breach sells at once (default 15, 0 = off) |
 | `live` | Trade on the real Kraken balance (also needs `"mode": "live"` in `config.json`) |
 | `entry_prices` | Purchase price per 1 coin for coins bought outside the bot (0 = unknown) |
 
