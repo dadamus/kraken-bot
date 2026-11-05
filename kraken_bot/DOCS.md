@@ -17,7 +17,7 @@ https://github.com/dadamus/kraken-bot
    add-on to change pairs and risk rules - no rebuild needed.
 4. Add the dashboard: `dashboards/ha_dashboard.yaml` (English) or `dashboards/ha_dashboard.pl.yaml`
    (Polish) from the repository, pasted into a new dashboard's raw configuration editor. The price and
-   forecast charts need the ApexCharts card from HACS ("apexcharts-card").
+   forecast charts need the ApexCharts card: Settings → Marketplace (HACS before 2026.11) → "apexcharts-card".
 
 ## Options
 

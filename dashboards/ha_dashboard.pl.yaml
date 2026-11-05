@@ -119,8 +119,8 @@ views:
               {% endfor %}
 
       # ------------------------------------------------------------------ cena i prognoza
-      # Wykresy cen i prognozy wymagają karty ApexCharts: HACS -> wyszukaj "apexcharts-card" -> Pobierz,
-      # potem odśwież przeglądarkę. Bez niej tylko te trzy karty pokażą błąd, reszta działa.
+      # Wykresy cen i prognozy wymagają karty ApexCharts: Ustawienia -> Marketplace (HACS przed HA 2026.11) -> "apexcharts-card" ->
+      # Pobierz, potem odśwież przeglądarkę. Bez niej tylko te trzy karty pokażą błąd, reszta działa.
       # Prognoza jest teoretyczna: ścieżka na 3 dni wynikająca z "szansy wzrostu" modelu (p_up_3d) i bieżącej
       # zmienności, z pasmem ±1σ (ok. 2 na 3 wyniki). 50% = płaska linia, brak zdania.
       - type: grid

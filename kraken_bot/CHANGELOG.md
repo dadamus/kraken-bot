@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.3.1
+- Charts appear without waiting for the daily cycle: when a pair has no chart data yet, the
+  refresh builds it from public Kraken candles and the model's latest call in the log (no model call,
+  no orders).
+- Docs: the ApexCharts card comes from Settings → Marketplace on Home Assistant 2026.11+.
+
 ## 2.3.0
 - Dashboard: a price chart per pair (last 30 days) with the model's theoretical 3-day forecast - the path
   implied by `p_up_3d` and the current volatility, with a ±1σ band - plus the entry price and the stop.

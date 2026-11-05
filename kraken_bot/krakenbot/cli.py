@@ -50,7 +50,15 @@ def refresh(cfg, state, live, mode):
     rows = guard.guard(cfg, state, prices, live, info)
     if rows:
         journal.log_rows(rows)
-    if live or rows:
+    charts = state.setdefault("charts", {})
+    missing = [pair for pair in cfg["pairs"] if pair not in charts]
+    log = journal.read_log() if missing else []
+    built = False
+    for pair in missing:  # normally built by the daily cycle; until then from the latest call in the log
+        chart = market.optional(f"chart {pair}", forecast.rebuild, pair, log)
+        if chart:  # a failed source is simply retried on the next refresh
+            charts[pair], built = chart, True
+    if live or rows or built:
         portfolio.save_state(state)
     homeassistant.ha_publish(cfg, state, prices, mode, rows)
 

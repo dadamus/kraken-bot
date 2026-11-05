@@ -119,8 +119,8 @@ views:
               {% endfor %}
 
       # ------------------------------------------------------------------ price and forecast
-      # Price and forecast charts need the ApexCharts card: HACS -> search "apexcharts-card" -> Download,
-      # then reload the browser. Without it only these three cards show an error, the rest works.
+      # Price and forecast charts need the ApexCharts card: Settings -> Marketplace (HACS before HA 2026.11) -> "apexcharts-card" ->
+      # Download, then reload the browser. Without it only these three cards show an error, the rest works.
       # The forecast is theoretical: the 3-day path implied by the model's "chance of a rise" (p_up_3d) and
       # the current volatility, with a ±1σ band (about 2 in 3 outcomes). 50% = flat line, no view.
       - type: grid

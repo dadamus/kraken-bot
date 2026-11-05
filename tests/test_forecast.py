@@ -3,11 +3,12 @@ import json
 import math
 import random
 import sys
+from datetime import datetime
 
 import pytest
 
-from krakenbot import cli, forecast, homeassistant
-from conftest import BASE_CFG, make_candles, make_state
+from krakenbot import claude, cli, forecast, homeassistant, journal, market
+from conftest import BASE_CFG, log_row, make_candles, make_state
 
 NOW = 1_800_000_000_000
 
@@ -82,3 +83,48 @@ def test_forecast_entity_published_to_home_assistant(cfg, monkeypatch):
     assert fc["state"] == state["charts"]["XBTEUR"]["expected_3d_pct"] > 0
     assert fc["attributes"]["unit_of_measurement"] == "%" and len(fc["attributes"]["forecast"]) == 4
     assert "states/sensor.kraken_bot_etheur_forecast" not in entities  # no chart yet -> no entity
+
+
+# ---------------------------------------------------------------- charts without the daily cycle
+@pytest.fixture
+def refresh(isolated, monkeypatch):
+    """Runs --ha with fake public candles; the model must never be asked."""
+    (isolated / "config.json").write_text(json.dumps(BASE_CFG), encoding="utf-8")
+    candles = make_candles([100.0 + i % 5 for i in range(120)])
+    monkeypatch.setattr(market, "fetch_ohlc", lambda pair, days: (candles, 104.0))
+    monkeypatch.setattr(market, "fetch_price", lambda pair: 104.0)
+    monkeypatch.setattr(claude, "ask_claude", lambda *a: pytest.fail("--ha must never ask the model"))
+    monkeypatch.setattr(sys, "argv", ["bot.py", "--ha"])
+
+    def run():
+        cli.main()
+        return json.loads((isolated / "state.json").read_text(encoding="utf-8"))["charts"]
+    return run
+
+
+def test_refresh_builds_missing_charts_from_the_latest_call(refresh):
+    journal.log_rows([log_row("2026-11-04 08:05", price=99.0, p_up=0.3),
+                      log_row("2026-11-05 19:08", price=101.0, p_up=0.6),
+                      log_row("2026-11-05 22:30", price=95.0, action="stop", executed="sell",
+                              rule="STOP (level 96)")])
+    charts = refresh()
+
+    btc = charts["XBTEUR"]
+    assert btc["made"] == "2026-11-05 19:08" and btc["p_up_3d"] == 0.6  # the stop is not a call
+    start = int(datetime(2026, 11, 5, 19, 8).timestamp() * 1000)
+    assert btc["forecast"][0] == [start, 101.0, 101.0, 101.0] and btc["expected_3d_pct"] > 0
+    assert charts["ETHEUR"]["forecast"] == [] and charts["ETHEUR"]["history"]  # no call yet: price only
+
+
+def test_refresh_keeps_charts_from_the_daily_cycle(isolated, refresh, monkeypatch):
+    state = make_state()
+    state["charts"] = {pair: {"history": [], "forecast": [], "made": "cycle"} for pair in BASE_CFG["pairs"]}
+    (isolated / "state.json").write_text(json.dumps(state), encoding="utf-8")
+    monkeypatch.setattr(market, "fetch_ohlc", lambda *a: pytest.fail("charts exist - no candles needed"))
+    assert all(c["made"] == "cycle" for c in refresh().values())
+
+
+def test_refresh_without_candles_saves_nothing(isolated, refresh, monkeypatch):
+    monkeypatch.setattr(market, "fetch_ohlc", lambda *a: (_ for _ in ()).throw(RuntimeError("Kraken down")))
+    cli.main()  # the source is skipped and retried on the next refresh
+    assert not (isolated / "state.json").exists()
