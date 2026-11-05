@@ -118,6 +118,287 @@ views:
               {%- endif %}
               {% endfor %}
 
+      # ------------------------------------------------------------------ cena i prognoza
+      # Wykresy cen i prognozy wymagają karty ApexCharts: HACS -> wyszukaj "apexcharts-card" -> Pobierz,
+      # potem odśwież przeglądarkę. Bez niej tylko te trzy karty pokażą błąd, reszta działa.
+      # Prognoza jest teoretyczna: ścieżka na 3 dni wynikająca z "szansy wzrostu" modelu (p_up_3d) i bieżącej
+      # zmienności, z pasmem ±1σ (ok. 2 na 3 wyniki). 50% = płaska linia, brak zdania.
+      - type: grid
+        cards:
+          - type: heading
+            heading: BTC - cena i prognoza
+            icon: mdi:bitcoin
+            badges:
+              - type: entity
+                entity: sensor.kraken_bot_xbteur_forecast
+                icon: mdi:crystal-ball
+              - type: entity
+                entity: sensor.kraken_bot_xbteur_forecast
+                icon: mdi:clock-outline
+                state_content: made
+          - type: custom:apexcharts-card
+            grid_options:
+              columns: full
+            graph_span: 33d
+            span:
+              end: day
+              offset: +3d
+            header:
+              show: false
+            now:
+              show: true
+              label: teraz
+            yaxis:
+              - decimals: 0
+            apex_config:
+              chart:
+                height: 260
+              legend:
+                show: true
+            series:
+              - entity: sensor.kraken_bot_xbteur_forecast
+                name: Cena
+                color: "#1e88e5"
+                stroke_width: 2
+                show:
+                  in_header: false
+                data_generator: |
+                  const now = Number(hass.states['sensor.kraken_bot_xbteur']?.attributes.price);
+                  const history = entity.attributes.history || [];
+                  return now ? [...history, [Date.now(), now]] : history;
+              - entity: sensor.kraken_bot_xbteur_forecast
+                name: Prognoza
+                color: "#8e24aa"
+                stroke_width: 2
+                stroke_dash: 4
+                show:
+                  in_header: false
+                data_generator: |
+                  return (entity.attributes.forecast || []).map(p => [p[0], p[1]]);
+              - entity: sensor.kraken_bot_xbteur_forecast
+                name: zakres ±1σ
+                color: "#ce93d8"
+                stroke_width: 1
+                stroke_dash: 2
+                show:
+                  in_header: false
+                data_generator: |
+                  return (entity.attributes.forecast || []).map(p => [p[0], p[2]]);
+              - entity: sensor.kraken_bot_xbteur_forecast
+                name: zakres ±1σ
+                color: "#ce93d8"
+                stroke_width: 1
+                stroke_dash: 2
+                show:
+                  in_header: false
+                  in_legend: false
+                data_generator: |
+                  return (entity.attributes.forecast || []).map(p => [p[0], p[3]]);
+              - entity: sensor.kraken_bot_xbteur
+                name: Wejście
+                color: "#2e7d32"
+                stroke_width: 1
+                stroke_dash: 6
+                show:
+                  in_header: false
+                data_generator: |
+                  const v = Number(entity.attributes.entry_price);
+                  return v ? [[start.getTime(), v], [end.getTime(), v]] : [];
+              - entity: sensor.kraken_bot_xbteur
+                name: Stop
+                color: "#c62828"
+                stroke_width: 1
+                stroke_dash: 6
+                show:
+                  in_header: false
+                data_generator: |
+                  const v = Number(entity.attributes.stop_price);
+                  return v ? [[start.getTime(), v], [end.getTime(), v]] : [];
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: ETH - cena i prognoza
+            icon: mdi:ethereum
+            badges:
+              - type: entity
+                entity: sensor.kraken_bot_etheur_forecast
+                icon: mdi:crystal-ball
+              - type: entity
+                entity: sensor.kraken_bot_etheur_forecast
+                icon: mdi:clock-outline
+                state_content: made
+          - type: custom:apexcharts-card
+            grid_options:
+              columns: full
+            graph_span: 33d
+            span:
+              end: day
+              offset: +3d
+            header:
+              show: false
+            now:
+              show: true
+              label: teraz
+            yaxis:
+              - decimals: 0
+            apex_config:
+              chart:
+                height: 260
+              legend:
+                show: true
+            series:
+              - entity: sensor.kraken_bot_etheur_forecast
+                name: Cena
+                color: "#1e88e5"
+                stroke_width: 2
+                show:
+                  in_header: false
+                data_generator: |
+                  const now = Number(hass.states['sensor.kraken_bot_etheur']?.attributes.price);
+                  const history = entity.attributes.history || [];
+                  return now ? [...history, [Date.now(), now]] : history;
+              - entity: sensor.kraken_bot_etheur_forecast
+                name: Prognoza
+                color: "#8e24aa"
+                stroke_width: 2
+                stroke_dash: 4
+                show:
+                  in_header: false
+                data_generator: |
+                  return (entity.attributes.forecast || []).map(p => [p[0], p[1]]);
+              - entity: sensor.kraken_bot_etheur_forecast
+                name: zakres ±1σ
+                color: "#ce93d8"
+                stroke_width: 1
+                stroke_dash: 2
+                show:
+                  in_header: false
+                data_generator: |
+                  return (entity.attributes.forecast || []).map(p => [p[0], p[2]]);
+              - entity: sensor.kraken_bot_etheur_forecast
+                name: zakres ±1σ
+                color: "#ce93d8"
+                stroke_width: 1
+                stroke_dash: 2
+                show:
+                  in_header: false
+                  in_legend: false
+                data_generator: |
+                  return (entity.attributes.forecast || []).map(p => [p[0], p[3]]);
+              - entity: sensor.kraken_bot_etheur
+                name: Wejście
+                color: "#2e7d32"
+                stroke_width: 1
+                stroke_dash: 6
+                show:
+                  in_header: false
+                data_generator: |
+                  const v = Number(entity.attributes.entry_price);
+                  return v ? [[start.getTime(), v], [end.getTime(), v]] : [];
+              - entity: sensor.kraken_bot_etheur
+                name: Stop
+                color: "#c62828"
+                stroke_width: 1
+                stroke_dash: 6
+                show:
+                  in_header: false
+                data_generator: |
+                  const v = Number(entity.attributes.stop_price);
+                  return v ? [[start.getTime(), v], [end.getTime(), v]] : [];
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: SOL - cena i prognoza
+            icon: mdi:alpha-s-circle
+            badges:
+              - type: entity
+                entity: sensor.kraken_bot_soleur_forecast
+                icon: mdi:crystal-ball
+              - type: entity
+                entity: sensor.kraken_bot_soleur_forecast
+                icon: mdi:clock-outline
+                state_content: made
+          - type: custom:apexcharts-card
+            grid_options:
+              columns: full
+            graph_span: 33d
+            span:
+              end: day
+              offset: +3d
+            header:
+              show: false
+            now:
+              show: true
+              label: teraz
+            yaxis:
+              - decimals: 1
+            apex_config:
+              chart:
+                height: 260
+              legend:
+                show: true
+            series:
+              - entity: sensor.kraken_bot_soleur_forecast
+                name: Cena
+                color: "#1e88e5"
+                stroke_width: 2
+                show:
+                  in_header: false
+                data_generator: |
+                  const now = Number(hass.states['sensor.kraken_bot_soleur']?.attributes.price);
+                  const history = entity.attributes.history || [];
+                  return now ? [...history, [Date.now(), now]] : history;
+              - entity: sensor.kraken_bot_soleur_forecast
+                name: Prognoza
+                color: "#8e24aa"
+                stroke_width: 2
+                stroke_dash: 4
+                show:
+                  in_header: false
+                data_generator: |
+                  return (entity.attributes.forecast || []).map(p => [p[0], p[1]]);
+              - entity: sensor.kraken_bot_soleur_forecast
+                name: zakres ±1σ
+                color: "#ce93d8"
+                stroke_width: 1
+                stroke_dash: 2
+                show:
+                  in_header: false
+                data_generator: |
+                  return (entity.attributes.forecast || []).map(p => [p[0], p[2]]);
+              - entity: sensor.kraken_bot_soleur_forecast
+                name: zakres ±1σ
+                color: "#ce93d8"
+                stroke_width: 1
+                stroke_dash: 2
+                show:
+                  in_header: false
+                  in_legend: false
+                data_generator: |
+                  return (entity.attributes.forecast || []).map(p => [p[0], p[3]]);
+              - entity: sensor.kraken_bot_soleur
+                name: Wejście
+                color: "#2e7d32"
+                stroke_width: 1
+                stroke_dash: 6
+                show:
+                  in_header: false
+                data_generator: |
+                  const v = Number(entity.attributes.entry_price);
+                  return v ? [[start.getTime(), v], [end.getTime(), v]] : [];
+              - entity: sensor.kraken_bot_soleur
+                name: Stop
+                color: "#c62828"
+                stroke_width: 1
+                stroke_dash: 6
+                show:
+                  in_header: false
+                data_generator: |
+                  const v = Number(entity.attributes.stop_price);
+                  return v ? [[start.getTime(), v], [end.getTime(), v]] : [];
+
       # ------------------------------------------------------------------ skuteczność
       - type: grid
         column_span: 3

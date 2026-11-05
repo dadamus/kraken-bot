@@ -59,6 +59,11 @@ def ha_publish(cfg, state, prices, mode, new_rows=None):
                    entry_source=pos.get("entry_source"), stop_price=pos.get("stop_price"),
                    position_pnl_pct=round((price / entry - 1) * 100, 2) if entry else None,
                    buy_and_hold_pct=round((price / first - 1) * 100, 2) if first else None)
+            chart = (state.get("charts") or {}).get(pair)
+            if chart:  # state: expected 3-day change in %; attributes: the data for the price chart
+                expected = chart.get("expected_3d_pct")
+                ha_set(ha, f"{p}_{pair.lower()}_forecast", expected if expected is not None else "unknown",
+                       t("ha_forecast", pair=pair), "mdi:crystal-ball", "%", **chart)
 
         log = journal.read_log()
         last_date = log[-1]["date"] if log else None

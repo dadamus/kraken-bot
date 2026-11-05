@@ -16,7 +16,8 @@ https://github.com/dadamus/kraken-bot
    (paper mode, 1000 virtual EUR). Edit it with the Samba share, Studio Code Server or File editor
    add-on to change pairs and risk rules - no rebuild needed.
 4. Add the dashboard: `dashboards/ha_dashboard.yaml` (English) or `dashboards/ha_dashboard.pl.yaml`
-   (Polish) from the repository, pasted into a new dashboard's raw configuration editor.
+   (Polish) from the repository, pasted into a new dashboard's raw configuration editor. The price and
+   forecast charts need the ApexCharts card from HACS ("apexcharts-card").
 
 ## Options
 

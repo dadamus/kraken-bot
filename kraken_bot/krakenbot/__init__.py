@@ -13,6 +13,7 @@ Modules, roughly in the order a cycle uses them:
   kraken        private Kraken API: live balance, entry prices, deposits, orders
   guard         stop-loss / take-profit between cycles
   evaluation    settling the model's calls, benchmark strategies, --report
+  forecast      chart data: recent closes and the theoretical 3-day path from p_up_3d
   homeassistant entities, logbook and notifications
   offline       fake data for --offline
   cli           command line and the daily cycle

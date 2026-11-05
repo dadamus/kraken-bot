@@ -13,8 +13,8 @@ import sys
 import time
 from datetime import datetime
 
-from . import (claude, config, evaluation, guard, homeassistant, indicators, journal, kraken, market, offline,
-               portfolio, risk)
+from . import (claude, config, evaluation, forecast, guard, homeassistant, indicators, journal, kraken, market,
+               offline, portfolio, risk)
 from .i18n import set_language, t
 
 
@@ -75,6 +75,9 @@ def daily_cycle(cfg, state, live, offline_mode, mode):
     else:
         signals, summary = claude.ask_claude(cfg, markets, news, portfolio_view(state, prices, pairs), context)
     print(t("model_summary", summary=summary))
+    made = datetime.now().strftime("%Y-%m-%d %H:%M")
+    state["charts"] = {pair: forecast.chart(closed_all[pair], prices[pair], signals[pair], markets[pair], made)
+                       for pair in pairs}
 
     # In live the budget during the cycle is tracked on a copy (an estimate after orders) so several buys
     # at once cannot exceed the limits; at the end the real Kraken balance is read anyway.

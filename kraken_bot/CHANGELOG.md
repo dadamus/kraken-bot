@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.3.0
+- Dashboard: a price chart per pair (last 30 days) with the model's theoretical 3-day forecast - the path
+  implied by `p_up_3d` and the current volatility, with a ±1σ band - plus the entry price and the stop.
+  Needs the ApexCharts card from HACS; re-paste the dashboard after updating.
+- New entities `sensor.kraken_bot_<pair>_forecast` (expected 3-day change in %), updated by the daily
+  cycle; the charts appear after the first cycle on this version.
+
 ## 2.2.1
 - Internal: the bot is split into the `krakenbot` package (one module per concern) and the
   messages moved to `locales/en.toml` / `pl.toml`. No change in behaviour, options or data files.
