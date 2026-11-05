@@ -159,6 +159,8 @@ views:
               - entity: sensor.kraken_bot_xbteur_forecast
                 name: Cena
                 color: "#1e88e5"
+                unit: EUR
+                extend_to: false
                 stroke_width: 2
                 show:
                   in_header: false
@@ -169,6 +171,8 @@ views:
               - entity: sensor.kraken_bot_xbteur_forecast
                 name: Prognoza
                 color: "#8e24aa"
+                unit: EUR
+                extend_to: false
                 stroke_width: 2
                 stroke_dash: 4
                 show:
@@ -178,18 +182,24 @@ views:
               - entity: sensor.kraken_bot_xbteur_forecast
                 name: zakres ±1σ
                 color: "#ce93d8"
+                unit: EUR
+                extend_to: false
                 stroke_width: 1
                 stroke_dash: 2
                 show:
+                  legend_value: false
                   in_header: false
                 data_generator: |
                   return (entity.attributes.forecast || []).map(p => [p[0], p[2]]);
               - entity: sensor.kraken_bot_xbteur_forecast
                 name: zakres ±1σ
                 color: "#ce93d8"
+                unit: EUR
+                extend_to: false
                 stroke_width: 1
                 stroke_dash: 2
                 show:
+                  legend_value: false
                   in_header: false
                   in_legend: false
                 data_generator: |
@@ -197,9 +207,11 @@ views:
               - entity: sensor.kraken_bot_xbteur
                 name: Wejście
                 color: "#2e7d32"
+                unit: EUR
                 stroke_width: 1
                 stroke_dash: 6
                 show:
+                  legend_value: false
                   in_header: false
                 data_generator: |
                   const v = Number(entity.attributes.entry_price);
@@ -207,9 +219,11 @@ views:
               - entity: sensor.kraken_bot_xbteur
                 name: Stop
                 color: "#c62828"
+                unit: EUR
                 stroke_width: 1
                 stroke_dash: 6
                 show:
+                  legend_value: false
                   in_header: false
                 data_generator: |
                   const v = Number(entity.attributes.stop_price);
@@ -251,6 +265,8 @@ views:
               - entity: sensor.kraken_bot_etheur_forecast
                 name: Cena
                 color: "#1e88e5"
+                unit: EUR
+                extend_to: false
                 stroke_width: 2
                 show:
                   in_header: false
@@ -261,6 +277,8 @@ views:
               - entity: sensor.kraken_bot_etheur_forecast
                 name: Prognoza
                 color: "#8e24aa"
+                unit: EUR
+                extend_to: false
                 stroke_width: 2
                 stroke_dash: 4
                 show:
@@ -270,18 +288,24 @@ views:
               - entity: sensor.kraken_bot_etheur_forecast
                 name: zakres ±1σ
                 color: "#ce93d8"
+                unit: EUR
+                extend_to: false
                 stroke_width: 1
                 stroke_dash: 2
                 show:
+                  legend_value: false
                   in_header: false
                 data_generator: |
                   return (entity.attributes.forecast || []).map(p => [p[0], p[2]]);
               - entity: sensor.kraken_bot_etheur_forecast
                 name: zakres ±1σ
                 color: "#ce93d8"
+                unit: EUR
+                extend_to: false
                 stroke_width: 1
                 stroke_dash: 2
                 show:
+                  legend_value: false
                   in_header: false
                   in_legend: false
                 data_generator: |
@@ -289,9 +313,11 @@ views:
               - entity: sensor.kraken_bot_etheur
                 name: Wejście
                 color: "#2e7d32"
+                unit: EUR
                 stroke_width: 1
                 stroke_dash: 6
                 show:
+                  legend_value: false
                   in_header: false
                 data_generator: |
                   const v = Number(entity.attributes.entry_price);
@@ -299,9 +325,11 @@ views:
               - entity: sensor.kraken_bot_etheur
                 name: Stop
                 color: "#c62828"
+                unit: EUR
                 stroke_width: 1
                 stroke_dash: 6
                 show:
+                  legend_value: false
                   in_header: false
                 data_generator: |
                   const v = Number(entity.attributes.stop_price);
@@ -343,6 +371,8 @@ views:
               - entity: sensor.kraken_bot_soleur_forecast
                 name: Cena
                 color: "#1e88e5"
+                unit: EUR
+                extend_to: false
                 stroke_width: 2
                 show:
                   in_header: false
@@ -353,6 +383,8 @@ views:
               - entity: sensor.kraken_bot_soleur_forecast
                 name: Prognoza
                 color: "#8e24aa"
+                unit: EUR
+                extend_to: false
                 stroke_width: 2
                 stroke_dash: 4
                 show:
@@ -362,18 +394,24 @@ views:
               - entity: sensor.kraken_bot_soleur_forecast
                 name: zakres ±1σ
                 color: "#ce93d8"
+                unit: EUR
+                extend_to: false
                 stroke_width: 1
                 stroke_dash: 2
                 show:
+                  legend_value: false
                   in_header: false
                 data_generator: |
                   return (entity.attributes.forecast || []).map(p => [p[0], p[2]]);
               - entity: sensor.kraken_bot_soleur_forecast
                 name: zakres ±1σ
                 color: "#ce93d8"
+                unit: EUR
+                extend_to: false
                 stroke_width: 1
                 stroke_dash: 2
                 show:
+                  legend_value: false
                   in_header: false
                   in_legend: false
                 data_generator: |
@@ -381,9 +419,11 @@ views:
               - entity: sensor.kraken_bot_soleur
                 name: Wejście
                 color: "#2e7d32"
+                unit: EUR
                 stroke_width: 1
                 stroke_dash: 6
                 show:
+                  legend_value: false
                   in_header: false
                 data_generator: |
                   const v = Number(entity.attributes.entry_price);
@@ -391,9 +431,11 @@ views:
               - entity: sensor.kraken_bot_soleur
                 name: Stop
                 color: "#c62828"
+                unit: EUR
                 stroke_width: 1
                 stroke_dash: 6
                 show:
+                  legend_value: false
                   in_header: false
                 data_generator: |
                   const v = Number(entity.attributes.stop_price);

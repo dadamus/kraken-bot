@@ -152,3 +152,13 @@ def test_charts_are_empty_before_first_cycle(path):
     """No entities yet (or a pair without a position): empty series, no JavaScript error."""
     results = run_generators(apex_series(path), {})
     assert all(r == [] for r in results)
+
+
+@pytest.mark.parametrize("path", EXPECTED)
+def test_charts_are_in_eur_and_do_not_extend_into_the_future(path):
+    """The forecast entity's own unit is %, so every series sets EUR; ApexCharts would otherwise also draw
+    the last price as a flat line to the right edge."""
+    for s in apex_series(path):
+        assert s["unit"] == "EUR"
+        if "_forecast" in s["entity"]:
+            assert s["extend_to"] is False
