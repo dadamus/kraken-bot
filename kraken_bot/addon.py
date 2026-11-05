@@ -26,7 +26,7 @@ from pathlib import Path
 
 import requests
 
-import bot  # protective_exit / fetch_price: the watcher uses exactly the guard's thresholds
+from krakenbot import market, risk  # the watcher uses exactly the guard's thresholds
 
 APP = Path(__file__).resolve().parent
 OPTIONS = Path(os.environ.get("ADDON_OPTIONS", "/data/options.json"))
@@ -101,11 +101,11 @@ def stop_hits(live):
         if pair not in cfg.get("pairs", []) or not pos.get("coin") or (validate and fired.get(pair) == today):
             continue
         try:
-            price = bot.fetch_price(pair)
+            price = market.fetch_price(pair)
         except Exception:
             continue
         # dust below the minimum order cannot be sold - do not keep waking the refresh for it
-        if pos["coin"] * price >= cfg["risk"].get("min_trade_eur", 0) and bot.protective_exit(cfg, pos, price):
+        if pos["coin"] * price >= cfg["risk"].get("min_trade_eur", 0) and risk.protective_exit(cfg, pos, price):
             hits.append(f"{pair} {price:g}")
     return hits
 

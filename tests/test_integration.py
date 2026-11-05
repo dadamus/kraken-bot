@@ -1,17 +1,18 @@
 """Whole bot runs (offline, --ha, --live) and the container entry point (addon.py)."""
 import json
 import random
+import sys
 
 import pytest
 
 import addon
-import bot
+from krakenbot import claude, cli, journal, market
 from conftest import BASE_CFG, make_state
 
 
 def run_main(monkeypatch, *args):
-    monkeypatch.setattr(bot.sys, "argv", ["bot.py", *args])
-    return bot.main()
+    monkeypatch.setattr(sys, "argv", ["bot.py", *args])
+    return cli.main()
 
 
 def write_config(isolated, **overrides):
@@ -23,7 +24,7 @@ def test_offline_cycle_logs_every_pair(isolated, monkeypatch, capsys):
     random.seed(7)
     run_main(monkeypatch, "--offline")
 
-    rows = bot.read_log()
+    rows = journal.read_log()
     assert sorted(r["pair"] for r in rows) == sorted(BASE_CFG["pairs"])
     state = json.loads((isolated / "state.json").read_text(encoding="utf-8"))
     assert "evaluation" in state and state["evaluation"]["bot"]["cycles"] == 1
@@ -39,7 +40,7 @@ def test_offline_cycle_in_polish(isolated, monkeypatch, capsys):
     run_main(monkeypatch, "--offline")
     out = capsys.readouterr().out
     assert "tryb: PAPER" in out and "kapitał:" in out
-    assert all(r["reasoning"].startswith("TEST OFFLINE") for r in bot.read_log())
+    assert all(r["reasoning"].startswith("TEST OFFLINE") for r in journal.read_log())
 
 
 def test_language_option_overrides_config(isolated, monkeypatch, capsys):
@@ -53,11 +54,11 @@ def test_ha_refresh_runs_stop_without_model(isolated, monkeypatch):
     write_config(isolated)
     state = make_state(eur=0, XBTEUR={"coin": 1.0, "entry_price": 100.0, "stop_price": 95.0})
     (isolated / "state.json").write_text(json.dumps(state), encoding="utf-8")
-    monkeypatch.setattr(bot, "fetch_price", lambda pair: {"XBTEUR": 94.0, "ETHEUR": 2000.0, "SOLEUR": 80.0}[pair])
-    monkeypatch.setattr(bot, "ask_claude", lambda *a: pytest.fail("--ha must never ask the model"))
+    monkeypatch.setattr(market, "fetch_price", lambda pair: {"XBTEUR": 94.0, "ETHEUR": 2000.0, "SOLEUR": 80.0}[pair])
+    monkeypatch.setattr(claude, "ask_claude", lambda *a: pytest.fail("--ha must never ask the model"))
     run_main(monkeypatch, "--ha")
 
-    rows = bot.read_log()
+    rows = journal.read_log()
     assert [(r["pair"], r["model_action"], r["executed"]) for r in rows] == [("XBTEUR", "stop", "sell")]
     saved = json.loads((isolated / "state.json").read_text(encoding="utf-8"))
     assert saved["positions"]["XBTEUR"]["coin"] == 0 and saved["eur"] > 90
@@ -65,9 +66,9 @@ def test_ha_refresh_runs_stop_without_model(isolated, monkeypatch):
 
 def test_ha_refresh_without_trigger_changes_nothing(isolated, monkeypatch):
     write_config(isolated)
-    monkeypatch.setattr(bot, "fetch_price", lambda pair: 100.0)
+    monkeypatch.setattr(market, "fetch_price", lambda pair: 100.0)
     run_main(monkeypatch, "--ha")
-    assert bot.read_log() == [] and not (isolated / "state.json").exists()
+    assert journal.read_log() == [] and not (isolated / "state.json").exists()
 
 
 def test_live_requires_live_mode_in_config(isolated, monkeypatch):
@@ -137,7 +138,7 @@ def test_watcher_finds_breached_stop(container, cfg, monkeypatch):
     watcher_files(container, cfg, {"XBTEUR": {"coin": 1.0, "entry_price": 100.0, "stop_price": 95.0},
                                    "ETHEUR": {"coin": 0.0, "entry_price": None}})
     asked = []
-    monkeypatch.setattr(bot, "fetch_price", lambda pair: asked.append(pair) or 94.0)
+    monkeypatch.setattr(market, "fetch_price", lambda pair: asked.append(pair) or 94.0)
     assert addon.stop_hits(live=False) == ["XBTEUR 94"]
     assert asked == ["XBTEUR"]  # pairs without coins are not even priced
 
@@ -145,7 +146,7 @@ def test_watcher_finds_breached_stop(container, cfg, monkeypatch):
 def test_watcher_quiet_above_stop_and_for_dust(container, cfg, monkeypatch):
     watcher_files(container, cfg, {"XBTEUR": {"coin": 1.0, "entry_price": 100.0, "stop_price": 95.0},
                                    "ETHEUR": {"coin": 0.00001, "entry_price": 100.0, "stop_price": 95.0}})
-    monkeypatch.setattr(bot, "fetch_price", lambda pair: 96.0 if pair == "XBTEUR" else 50.0)
+    monkeypatch.setattr(market, "fetch_price", lambda pair: 96.0 if pair == "XBTEUR" else 50.0)
     assert addon.stop_hits(live=False) == []
 
 
@@ -154,7 +155,7 @@ def test_watcher_skips_pair_already_fired_in_validation(container, cfg, monkeypa
     today = addon.datetime.now().strftime("%Y-%m-%d")
     watcher_files(container, cfg, {"XBTEUR": {"coin": 1.0, "entry_price": 100.0, "stop_price": 95.0}},
                   live=True, guard_fired={"XBTEUR": today})
-    monkeypatch.setattr(bot, "fetch_price", lambda pair: 90.0)
+    monkeypatch.setattr(market, "fetch_price", lambda pair: 90.0)
     assert addon.stop_hits(live=True) == []
 
 
@@ -164,5 +165,5 @@ def test_watcher_survives_missing_files_and_network(container, cfg, monkeypatch)
 
     def down(pair):
         raise ConnectionError("no network")
-    monkeypatch.setattr(bot, "fetch_price", down)
+    monkeypatch.setattr(market, "fetch_price", down)
     assert addon.stop_hits(live=False) == []

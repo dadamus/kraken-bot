@@ -2,15 +2,17 @@
 blocked - no test can accidentally call Kraken or Claude."""
 import copy
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
+import requests
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "kraken_bot"))
 
-import bot  # noqa: E402
+from krakenbot import config, i18n  # noqa: E402
 
 BASE_CFG = {
     "mode": "paper",
@@ -46,22 +48,22 @@ def cfg():
 @pytest.fixture(autouse=True)
 def isolated(tmp_path, monkeypatch):
     """Bot files in a temporary directory, no network, no waiting, English messages."""
-    monkeypatch.setattr(bot, "DATA", tmp_path)
-    monkeypatch.setattr(bot, "CONFIG_FILE", tmp_path / "config.json")
-    monkeypatch.setattr(bot, "STATE_FILE", tmp_path / "state.json")
-    monkeypatch.setattr(bot, "LOG_FILE", tmp_path / "decisions.csv")
-    monkeypatch.setattr(bot, "LIVE_STATE_FILE", tmp_path / "state_live.json")
-    monkeypatch.setattr(bot, "LIVE_LOG_FILE", tmp_path / "decisions_live.csv")
+    monkeypatch.setattr(config, "DATA", tmp_path)
+    monkeypatch.setattr(config, "CONFIG_FILE", tmp_path / "config.json")
+    monkeypatch.setattr(config, "STATE_FILE", tmp_path / "state.json")
+    monkeypatch.setattr(config, "LOG_FILE", tmp_path / "decisions.csv")
+    monkeypatch.setattr(config, "LIVE_STATE_FILE", tmp_path / "state_live.json")
+    monkeypatch.setattr(config, "LIVE_LOG_FILE", tmp_path / "decisions_live.csv")
 
     def no_network(*args, **kwargs):
         raise AssertionError(f"the test tried to use the network: {args[:1]}")
 
-    monkeypatch.setattr(bot.requests, "get", no_network)
-    monkeypatch.setattr(bot.requests, "post", no_network)
-    monkeypatch.setattr(bot.time, "sleep", lambda s: None)
+    monkeypatch.setattr(requests, "get", no_network)
+    monkeypatch.setattr(requests, "post", no_network)
+    monkeypatch.setattr(time, "sleep", lambda s: None)
     monkeypatch.delenv("BOT_ENTRY_PRICES", raising=False)
     monkeypatch.delenv("BOT_LANGUAGE", raising=False)
-    bot.set_language({})
+    i18n.set_language({})
     return tmp_path
 
 

@@ -4,11 +4,11 @@ from types import SimpleNamespace
 
 import pytest
 
-import bot
+from krakenbot import claude, i18n
 
 
 def test_parse_signal_clamps_and_cleans():
-    s = bot.parse_signal({"action": "BUY!!", "confidence": 1.7, "size_pct": 250, "p_up_3d": 1.3,
+    s = claude.parse_signal({"action": "BUY!!", "confidence": 1.7, "size_pct": 250, "p_up_3d": 1.3,
                           "stop_price": "abc", "reasoning": "x" * 1000})
     assert s["action"] == "hold"  # unknown action = do nothing
     assert s["confidence"] == 1.0
@@ -23,17 +23,17 @@ def test_parse_signal_missing_probability(p_up):
     d = {"action": "sell", "confidence": 0.7, "size_pct": 50}
     if p_up is not None:
         d["p_up_3d"] = p_up
-    s = bot.parse_signal(d)
+    s = claude.parse_signal(d)
     assert s["p_up_3d"] is None and s["action"] == "sell"
 
 
 def test_parse_signal_keeps_valid_stop():
-    assert bot.parse_signal({"action": "buy", "stop_price": "67900"})["stop_price"] == 67900.0
-    assert bot.parse_signal({"action": "buy", "stop_price": None})["stop_price"] is None
+    assert claude.parse_signal({"action": "buy", "stop_price": "67900"})["stop_price"] == 67900.0
+    assert claude.parse_signal({"action": "buy", "stop_price": None})["stop_price"] is None
 
 
 def test_decision_schema_is_strict():
-    schema = bot.decision_schema(["XBTEUR", "ETHEUR"])
+    schema = claude.decision_schema(["XBTEUR", "ETHEUR"])
 
     def objects(node):
         if isinstance(node, dict):
@@ -76,12 +76,12 @@ def reply(payload, stop_reason="end_turn"):
 @pytest.fixture
 def fake_claude(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
-    monkeypatch.setattr(bot.anthropic, "Anthropic", FakeClient)
+    monkeypatch.setattr(claude.anthropic, "Anthropic", FakeClient)
     return FakeClient
 
 
 def ask(cfg):
-    return bot.ask_claude(cfg, markets={"XBTEUR": {}}, news=[], portfolio={}, context={})
+    return claude.ask_claude(cfg, markets={"XBTEUR": {}}, news=[], portfolio={}, context={})
 
 
 def test_ask_claude_request_and_parsing(cfg, fake_claude):
@@ -110,7 +110,7 @@ def test_ask_claude_request_and_parsing(cfg, fake_claude):
 
 def test_polish_language_asks_for_polish_reasoning(cfg, fake_claude):
     cfg["language"] = "pl"
-    bot.set_language(cfg)
+    i18n.set_language(cfg)
     fake_claude.response = reply({"summary": "", "decisions": []})
     signals, _ = ask(cfg)
     assert 'in Polish.' in fake_claude.last_kwargs["system"]

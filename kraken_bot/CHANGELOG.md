@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.2.1
+- Internal: the bot is split into the `krakenbot` package (one module per concern) and the
+  messages moved to `locales/en.toml` / `pl.toml`. No change in behaviour, options or data files.
+
 ## 2.2.0
 - Stops react within seconds: between refreshes the add-on checks the public price every
   `stop_check_seconds` (default 15) and sells as soon as a stop-loss / take-profit level is breached,

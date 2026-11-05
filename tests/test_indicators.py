@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-import bot
+from krakenbot import indicators
 from conftest import MONDAY, make_candles
 
 
@@ -15,7 +15,7 @@ def test_basic_indicators_on_steady_uptrend():
     closes = rising(300)
     closed = make_candles(closes)
     price = closes[-1] + 1
-    m = bot.indicators(closed, price)
+    m = indicators.indicators(closed, price)
 
     assert m["sma50"] == pytest.approx(sum(closes[-50:]) / 50)
     assert m["sma200"] == pytest.approx(sum(closes[-200:]) / 200)
@@ -31,7 +31,7 @@ def test_basic_indicators_on_steady_uptrend():
 
 def test_weekly_candles_skip_incomplete_week():
     closes = rising(300)  # 42 complete weeks + 6 days
-    weeks = bot.indicators(make_candles(closes), closes[-1])["last_26_weeks"]["rows"]
+    weeks = indicators.indicators(make_candles(closes), closes[-1])["last_26_weeks"]["rows"]
 
     assert len(weeks) == 26
     for start, *_ in weeks:
@@ -43,7 +43,7 @@ def test_weekly_candles_skip_incomplete_week():
 
 def test_short_history_gives_none_instead_of_crashing():
     closes = rising(60)
-    m = bot.indicators(make_candles(closes), closes[-1])
+    m = indicators.indicators(make_candles(closes), closes[-1])
 
     assert m["sma200"] is None and m["pct_vs_sma200"] is None
     assert m["sma200_change_20d_pct"] is None
@@ -53,7 +53,7 @@ def test_short_history_gives_none_instead_of_crashing():
 
 def test_rsi_of_steady_downtrend_is_zero():
     closes = rising(60, start=200, step=-1)
-    assert bot.indicators(make_candles(closes), closes[-1])["rsi14"] == 0.0
+    assert indicators.indicators(make_candles(closes), closes[-1])["rsi14"] == 0.0
 
 
 def test_relative_strength_vs_btc():
@@ -61,7 +61,7 @@ def test_relative_strength_vs_btc():
     eth = make_candles(rising(60, start=10))  # rising while BTC is flat
     sol = make_candles(rising(60, start=70, step=-1))  # falling
     prices = {"XBTEUR": 100.0, "ETHEUR": 70.0, "SOLEUR": 10.0}
-    rs = bot.relative_strength({"XBTEUR": btc, "ETHEUR": eth, "SOLEUR": sol}, prices)
+    rs = indicators.relative_strength({"XBTEUR": btc, "ETHEUR": eth, "SOLEUR": sol}, prices)
 
     assert set(rs) == {"ETHEUR", "SOLEUR"}  # BTC is not compared with itself
     assert rs["ETHEUR"]["ratio_now"] == pytest.approx(0.7)
@@ -70,4 +70,4 @@ def test_relative_strength_vs_btc():
 
 
 def test_relative_strength_without_btc_is_empty():
-    assert bot.relative_strength({"ETHEUR": make_candles(rising(60))}, {"ETHEUR": 1.0}) == {}
+    assert indicators.relative_strength({"ETHEUR": make_candles(rising(60))}, {"ETHEUR": 1.0}) == {}

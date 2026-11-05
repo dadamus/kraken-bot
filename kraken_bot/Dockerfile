@@ -6,6 +6,7 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 COPY bot.py addon.py config.example.json ./
+COPY krakenbot ./krakenbot
 ENV BOT_DATA_DIR=/config
 VOLUME /config
 CMD ["python3", "-u", "addon.py"]

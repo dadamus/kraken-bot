@@ -244,11 +244,23 @@ docker run --rm -v "$PWD:/src:ro" kraken-bot sh -c 'pip install -q pytest jinja2
 
 On Windows with Git Bash, prefix it with `MSYS_NO_PATHCONV=1` and use `$(pwd -W)` instead of `$PWD`.
 
+### Translations
+
+Every message the user reads lives in `kraken_bot/krakenbot/locales/<code>.toml`, with `en.toml` as the
+reference. To add a language, copy `en.toml` to e.g. `de.toml`, set `language_name = "German"` (the model
+is told to answer in it) and translate the values, keeping the `{placeholders}`. A missing key falls back
+to English; the tests check that every file has the same keys and placeholders as `en.toml`. For the
+add-on, also add the code to `language: list(en|pl)` in `config.yaml` and a file to `translations/`
+(the add-on options screen).
+
 ## Repository layout
 
 | Path | What |
 |---|---|
-| `kraken_bot/bot.py` | The whole bot |
+| `kraken_bot/bot.py` | Command-line entry point (`--offline`, `--report`, `--ha`, `--live`) |
+| `kraken_bot/krakenbot/` | The bot itself, one module per concern (module map in `__init__.py`): market data, indicators, Claude, risk rules, Kraken, guard, evaluation, Home Assistant |
+| `kraken_bot/krakenbot/locales/` | Texts the user reads, one TOML file per language |
+| `kraken_bot/krakenbot/system_prompt.txt` | The model's system prompt (always English; the answer language is filled in) |
 | `kraken_bot/addon.py` | Scheduler / container entry point (add-on and Docker) |
 | `kraken_bot/config.yaml`, `Dockerfile`, `translations/`, `DOCS.md` | The Home Assistant add-on |
 | `kraken_bot/config.example.json` | Default configuration, copied to the data folder on the first start |
