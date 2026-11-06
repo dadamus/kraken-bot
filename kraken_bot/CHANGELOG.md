@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.5.0
+- More context for the model from outside crypto (free, no keys; a failing source is skipped):
+  - `us_markets`: Nasdaq 100, S&P 500, VIX, the US 10-year yield and the broad dollar index from FRED,
+    with 1/5/20-day changes,
+  - `macro_calendar`: this week's high-impact US events (Fed, CPI, jobs...) with the time until them,
+    from the ForexFactory feed; kept in the state and downloaded at most every 6 hours,
+  - `coinbase_premium`: BTC on Coinbase versus Kraken in USD (now, 24 h average, last 6 hours).
+
 ## 2.4.0
 - Extra model cycles between the daily ones, started by events instead of the clock: a stop /
   take-profit sale at least 3 hours ago, or a price move of at least 1.5 daily ATRs since the last cycle.

@@ -14,8 +14,8 @@ import sys
 import time
 from datetime import datetime
 
-from . import (claude, config, evaluation, forecast, guard, homeassistant, indicators, journal, kraken, market,
-               offline, portfolio, risk, triggers)
+from . import (claude, config, evaluation, forecast, guard, homeassistant, indicators, journal, kraken, macro,
+               market, offline, portfolio, risk, triggers)
 from .i18n import set_language, t
 
 
@@ -163,6 +163,9 @@ def load_context(pairs, state, prices, candles, closed_all, offline_mode):
         context["fear_greed"] = market.optional("fear&greed", market.fetch_fear_greed)
         context["market_overview"] = market.optional("coingecko", market.fetch_market_overview, state)
         context["implied_vol"] = market.optional("deribit", market.fetch_implied_vol, pairs, closed_all)
+        context["us_markets"] = market.optional("FRED", macro.fetch_us_markets)
+        context["macro_calendar"] = market.optional("calendar", macro.fetch_macro_calendar, state)
+        context["coinbase_premium"] = market.optional("coinbase", macro.fetch_coinbase_premium)
     if context.get("market_overview"):
         mo = context["market_overview"]
         print(t("market_line", btc=mo["btc_dominance_pct"], stable=mo["stablecoin_share_pct"],
@@ -173,6 +176,16 @@ def load_context(pairs, state, prices, candles, closed_all, offline_mode):
     for pair, d in (context.get("derivatives") or {}).items():
         print(t("funding_line", pair=pair, funding=d["funding_8h_pct"], oi=d["open_interest_usd_m"],
                 oi_chg=d["open_interest_change_pct"]))
+    us = context.get("us_markets") or {}
+    if us:
+        print(t("us_markets_line", items=", ".join(
+            f"{k} {v['last']:g} ({v.get('change_1d_pct', v.get('change_1d_points'))})" for k, v in us.items())))
+    if context.get("macro_calendar") is not None:
+        print(t("calendar_line", n=len(context["macro_calendar"]),
+                items="; ".join(f"{e['time_utc']} {e['event']}" for e in context["macro_calendar"][:4])))
+    if context.get("coinbase_premium"):
+        cp = context["coinbase_premium"]
+        print(t("premium_line", now=cp["premium_now_pct"], avg=cp["premium_avg_24h_pct"]))
     if context.get("fear_greed"):
         print(f"  Fear & Greed: {context['fear_greed']['today']} ({context['fear_greed']['label']})")
     return context

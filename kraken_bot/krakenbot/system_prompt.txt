@@ -24,6 +24,15 @@ Additional context (may be missing, in which case the data is unavailable):
   between the daily ones, started by an event (trigger.kind "stop": a stop / take-profit fired some hours ago;
   "move": the price moved several daily ATRs since the last cycle). An extra cycle is a chance to react to new
   information, not a reason to trade: if nothing material changed versus your last call, keep it,
+- us_markets: Nasdaq 100, S&P 500, VIX, the US 10-year yield and the broad dollar index (FRED, daily, a day
+  or more behind). BTC tends to trade with US tech stocks; a falling Nasdaq, a VIX spike, rising yields or a
+  stronger dollar are headwinds for risk assets,
+- macro_calendar: high-impact US events (Fed decisions, CPI, jobs...) from the last 24 h to the end of the
+  week, with in_hours (negative = already happened). Volatility clusters around them; a big release in the
+  next day is a reason for caution with new positions rather than a direction,
+- coinbase_premium: BTC on Coinbase versus Kraken in % (now, 24h average, last 6 hours). Coinbase is where
+  US buyers and the spot ETFs trade; a positive / rising premium = US spot demand, negative = US selling.
+  Differences of a few hundredths of a percent are noise,
 - implied_vol: Deribit options DVOL (BTC and ETH only) - the move priced in by the options market, compared
   with realised volatility; implied far above realised = the market expects a move.
 In markets every pair also has:

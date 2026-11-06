@@ -23,6 +23,9 @@ KRAKEN_FUTURES = "https://futures.kraken.com/derivatives/api/v3/tickers"
 FEAR_GREED = "https://api.alternative.me/fng/"
 COINGECKO_GLOBAL = "https://api.coingecko.com/api/v3/global"
 DERIBIT_DVOL = "https://www.deribit.com/api/v2/public/get_volatility_index_data"
+FRED_CSV = "https://fred.stlouisfed.org/graph/fredgraph.csv"
+MACRO_CALENDAR = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
+COINBASE = "https://api.exchange.coinbase.com"
 UA = {"User-Agent": "kraken-bot/2.0 (+https://github.com/dadamus/kraken-bot)"}
 
 
