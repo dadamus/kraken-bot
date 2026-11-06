@@ -19,7 +19,7 @@ Logs, Home Assistant entities, notifications and the model's reasoning are avail
 
 1. Downloads up to 720 daily candles from Kraken for each pair in `pairs` (e.g. BTC, ETH, SOL in EUR)
    and computes indicators: RSI, SMA7/30/50/200, ATR, 30-day and 1-year ranges, 26 weekly candles,
-   strength versus BTC.
+   strength versus BTC. Plus the last 24 hourly candles, so the model sees the intraday path.
 2. Gathers context from public sources (no keys needed; a failing source is simply skipped):
    news headlines (CoinDesk, Cointelegraph, Decrypt), perpetual funding and open interest
    (Kraken Futures), Fear & Greed (alternative.me), BTC/ETH dominance and stablecoin share (CoinGecko),
@@ -32,8 +32,13 @@ Logs, Home Assistant entities, notifications and the model's reasoning are avail
    to `decisions.csv`.
 
 **Every 15 minutes** (configurable) it checks stop-loss and take-profit on the current price and sells
-the whole position if one is hit. This uses only Kraken's public price API, never the model, so it
-costs nothing. It also refreshes the Home Assistant entities.
+the whole position if one is hit. This uses only Kraken's public price API, so it costs nothing. It also
+refreshes the Home Assistant entities.
+
+**Extra cycles.** The refresh asks the model between the daily cycles only when something happened:
+a stop / take-profit fired at least 3 hours ago (was it a real break or a wick?), or a pair moved at
+least 1.5 daily ATRs from the price of the last cycle. At most 3 extra cycles a day and at least 3 hours
+after any cycle; the model is told why it is being asked. See `extra_cycles` below.
 
 ## Install as a Home Assistant add-on
 
@@ -174,6 +179,16 @@ environment. Schedule `bot.py` daily and `bot.py --ha` every 15 minutes with cro
 
 Exposure limits only restrict **new** buys; an existing position above a limit is never sold because of it.
 
+### Extra cycles (`extra_cycles`, optional)
+
+| Setting | Default | What it does |
+|---|---|---|
+| `enabled` | `true` | Ask the model between the daily cycles when an event below happens |
+| `after_stop_hours` | 3 | Hours after a stop / take-profit sale before the extra cycle |
+| `move_atr` | 1.5 | Price move since the last cycle, in daily ATR14, that starts an extra cycle |
+| `min_gap_hours` | 3 | Minimum time since the last cycle of any kind |
+| `max_per_day` | 3 | Maximum extra cycles per day (each is one model call) |
+
 **Stops.** With every buy the model gives `stop_price`, the price at which its thesis no longer holds.
 Code keeps it at least 1 ATR below the price (so ordinary daily noise does not shake the position out)
 and no further than `stop_loss_pct`; without a level it uses 2 ATR. With an open position the model may
@@ -185,8 +200,8 @@ These are not stop orders on the exchange. The container compares the public pri
 check off they are only checked every `ha_refresh_minutes`. In a fast crash, or while the bot is not
 running, the sale still happens below the level.
 
-**After a sale** the EUR stays on the account. Buying back is decided by the next daily cycle, within the
-limits above. The model sees the stop sales of the last 7 days and is told not to buy back without a new reason.
+**After a sale** the EUR stays on the account. Buying back is decided by the next cycle (the extra one a
+few hours after the stop, or the daily one), within the limits above. The model sees the stop sales of the last 7 days and is told not to buy back without a new reason.
 
 ## Measuring performance
 

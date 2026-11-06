@@ -5,7 +5,8 @@ Container entry point (Home Assistant add-on or standalone Docker): runs the bot
 - the full cycle (bot.py) once a day at run_time; if the container starts after that time and today's
   cycle has not run yet (e.g. after a restart), the cycle starts right away,
 - a refresh (bot.py --ha: stop-loss / take-profit on the current price + Home Assistant entities)
-  every refresh_minutes, and immediately after Home Assistant restarts,
+  every refresh_minutes, and immediately after Home Assistant restarts; the refresh itself runs an extra
+  model cycle when an event warrants one (krakenbot/triggers.py),
 - between refreshes a cheap price check every stop_check_seconds (public Ticker only): when a held pair
   is at or beyond its stop / take-profit level the refresh runs at once instead of up to
   refresh_minutes later.

@@ -13,12 +13,17 @@ Additional context (may be missing, in which case the data is unavailable):
 - own_recent_decisions: your calls from recent days and the price change since; entries with action "stop"
   are automatic sales of the whole position between cycles (rule: STOP = price broke the stop,
   TAKE-PROFIT = target reached). After a stop do not buy back right away without a new reason - the price
-  has just broken the level you considered the invalidation of your thesis,
+  has just broken the level you considered the invalidation of your thesis. A new reason can be e.g. the price
+  clearly reclaiming the broken level and holding above it for several hours (see last_24_hours),
 - own_track_record: settlement of all your earlier calls - average price change 1/3/7 days after
   buy/hold/sell and calibration of p_up_3d (Brier: 0.25 = coin flip, lower = better; buckets: whether e.g.
   ~0.7 forecasts came true ~70% of the time). With a few dozen samples this is still mostly noise,
 - market_overview: the whole crypto market (BTC/ETH dominance, stablecoin share - rising usually means a
   flight to cash, market cap change; changes_since_last_cycle in percentage points),
+- this_cycle: why you are asked now. "scheduled_daily" = the regular daily cycle; "extra" = an extra cycle
+  between the daily ones, started by an event (trigger.kind "stop": a stop / take-profit fired some hours ago;
+  "move": the price moved several daily ATRs since the last cycle). An extra cycle is a chance to react to new
+  information, not a reason to trade: if nothing material changed versus your last call, keep it,
 - implied_vol: Deribit options DVOL (BTC and ETH only) - the move priced in by the options market, compared
   with realised volatility; implied far above realised = the market expects a move.
 In markets every pair also has:
@@ -26,6 +31,9 @@ In markets every pair also has:
   support and resistance, not just single percentage changes,
 - the bigger picture: sma50/sma200 and the distance to them, the SMA200 slope, range_365d, last_26_weeks
   (weekly candles) - a short-term buy against the weekly trend needs a stronger reason,
+- last_24_hours: hourly candles of the last 24 h (UTC, oldest first) with the 24 h change, high and low - the
+  intraday path: was a broken level reclaimed or lost, is a drop accelerating or stalling. A single hour is
+  noise; use it for timing and confirmation, not as a trend of its own,
 - atr14 / atr14_pct: the typical daily range (for stop placement),
 - vs_btc (pairs other than BTC): the price in BTC - is the coin stronger or weaker than the market.
 Treat this as context, not a standalone signal: extreme funding and fast-rising open interest

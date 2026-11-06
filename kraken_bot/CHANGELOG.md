@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.4.0
+- Extra model cycles between the daily ones, started by events instead of the clock: a stop /
+  take-profit sale at least 3 hours ago, or a price move of at least 1.5 daily ATRs since the last cycle.
+  At most 3 a day, at least 3 hours apart; the model is told why it is asked (`this_cycle`). Tune or
+  switch off with `extra_cycles` in `config.json` (on by default).
+- The model also gets the last 24 hourly candles per pair (`last_24_hours`), e.g. to see whether a broken
+  level was reclaimed after a stop.
+- The model's recent calls cover the last 7 days, not the last 7 cycles.
+
 ## 2.3.1
 - Charts appear without waiting for the daily cycle: when a pair has no chart data yet, the
   refresh builds it from public Kraken candles and the model's latest call in the log (no model call,

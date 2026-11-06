@@ -93,6 +93,27 @@ def indicators(closed, price):
     }
 
 
+def hourly(candles, price):
+    """The last 24 h from hourly candles (oldest first, UTC): where a broken level was reclaimed or lost,
+    whether a drop accelerates or stalls."""
+    if not candles:
+        return None
+
+    def sig(x):
+        return float(f"{x:.6g}")
+
+    hi, lo = max(c["h"] for c in candles), min(c["l"] for c in candles)
+    avg_vol = sum(c["v"] for c in candles) / len(candles)
+    return {"change_pct": round((price / candles[0]["o"] - 1) * 100, 2),
+            "high": sig(hi), "low": sig(lo),
+            "pct_below_high": round((1 - price / hi) * 100, 2),
+            "pct_above_low": round((price / lo - 1) * 100, 2),
+            "columns": ["hour_utc", "open", "close", "high", "low", "volume_rel"],
+            "rows": [[datetime.fromtimestamp(c["t"], timezone.utc).strftime("%m-%d %H:00"), sig(c["o"]),
+                      sig(c["c"]), sig(c["h"]), sig(c["l"]),
+                      round(c["v"] / avg_vol, 2) if avg_vol else None] for c in candles]}
+
+
 def relative_strength(closed_by_pair, prices, base="XBTEUR"):
     """Each pair priced in BTC (e.g. ETH/BTC) from our EUR candles: is the coin stronger than the market?"""
     if base not in closed_by_pair:

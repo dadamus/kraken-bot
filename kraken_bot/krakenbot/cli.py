@@ -4,7 +4,8 @@
   python bot.py --offline    # test on fake data (no internet, no API keys)
   python bot.py --report     # performance summary
   python bot.py --live       # real orders (requires "mode": "live" in config.json + API keys)
-  python bot.py --ha         # refresh: stop-loss / take-profit on the current price (no model) + Home Assistant
+  python bot.py --ha         # refresh: stop-loss / take-profit on the current price + Home Assistant; asks
+                             # the model only for an event-triggered extra cycle (see triggers.py)
   python bot.py --ha --live  # the same with the real Kraken balance
 """
 import argparse
@@ -14,7 +15,7 @@ import time
 from datetime import datetime
 
 from . import (claude, config, evaluation, forecast, guard, homeassistant, indicators, journal, kraken, market,
-               offline, portfolio, risk)
+               offline, portfolio, risk, triggers)
 from .i18n import set_language, t
 
 
@@ -44,7 +45,8 @@ def main():
 
 
 def refresh(cfg, state, live, mode):
-    """Between cycles: current prices, stop-loss / take-profit, Home Assistant. Never asks the model."""
+    """Between cycles: current prices, stop-loss / take-profit, Home Assistant. Asks the model only when an
+    event warrants an extra cycle (a stop fired some hours ago, a large move since the last cycle)."""
     prices = {pair: market.fetch_price(pair) for pair in cfg["pairs"]}
     info = kraken.sync_live(cfg, state, prices) if live else None
     rows = guard.guard(cfg, state, prices, live, info)
@@ -62,8 +64,15 @@ def refresh(cfg, state, live, mode):
         portfolio.save_state(state)
     homeassistant.ha_publish(cfg, state, prices, mode, rows)
 
+    reason = triggers.extra_cycle_reason(cfg, state, prices, journal.read_log())
+    if reason:
+        triggers.count_extra(state)
+        portfolio.save_state(state)
+        print(t("extra_cycle", why=triggers.describe(reason)))
+        daily_cycle(cfg, state, live, False, mode, trigger=reason)
 
-def daily_cycle(cfg, state, live, offline_mode, mode):
+
+def daily_cycle(cfg, state, live, offline_mode, mode, trigger=None):
     pairs = cfg["pairs"]
     print(t("cycle_header", now=f"{datetime.now():%Y-%m-%d %H:%M}", pairs=", ".join(pairs), mode=mode.upper()))
 
@@ -71,7 +80,8 @@ def daily_cycle(cfg, state, live, offline_mode, mode):
     news = [t("offline_news")] if offline_mode else market.fetch_news(cfg["news_feeds"])
     print(t("news_count", n=len(news)))
     pair_info = kraken.sync_live(cfg, state, prices) if live else None
-    context = load_context(pairs, state, prices, candles, closed_all, offline_mode)
+    context = {"this_cycle": triggers.cycle_info(trigger),
+               **load_context(pairs, state, prices, candles, closed_all, offline_mode)}
 
     # positions outside the pair list (e.g. after removing a pair from config.json) - no price, no value
     for pair, p in state["positions"].items():
@@ -105,6 +115,7 @@ def daily_cycle(cfg, state, live, offline_mode, mode):
     for row in rows:
         row["eur"], row["equity_eur"] = round(book["eur"], 2), round(equity, 2)
     state["last_summary"] = summary
+    triggers.remember_cycle(state, markets, prices)
     journal.log_rows(rows)
     ev = market.optional("evaluation", evaluation.evaluation, cfg, book, journal.read_log(), candles, prices)
     if ev:
@@ -129,6 +140,10 @@ def load_markets(pairs, state, offline_mode):
         closed_all[pair] = closed
         prices[pair] = price
         markets[pair] = m = indicators.indicators(closed, price)
+        if not offline_mode:  # the intraday path; a failure only leaves it out
+            hours = market.optional(f"hourly {pair}", market.fetch_hourly, pair)
+            if hours:
+                m["last_24_hours"] = indicators.hourly(hours, price)
         state["first_prices"].setdefault(pair, price)
         print(t("price_line", pair=pair, price=price, d1=m["change_1d_pct"], d7=m["change_7d_pct"],
                 sma200=m["pct_vs_sma200"], atr=m["atr14_pct"]))

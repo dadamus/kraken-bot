@@ -20,6 +20,13 @@
     "halt_days": 7,
     "intraday_stops": true
   },
+  "extra_cycles": {
+    "enabled": true,
+    "after_stop_hours": 3,
+    "move_atr": 1.5,
+    "min_gap_hours": 3,
+    "max_per_day": 3
+  },
   "entry_prices": {},
   "news_feeds": [
     "https://www.coindesk.com/arc/outboundfeeds/rss/",

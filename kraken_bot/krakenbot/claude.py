@@ -91,8 +91,10 @@ def recent_decisions(pairs, prices, days=7):
     """The model's recent calls and what the price did afterwards, so it can see whether it was right.
     Also automatic stop / take-profit sales between cycles (action "stop") from the same period."""
     rows = journal.read_log()
-    dates = sorted({r["date"] for r in rows if r["model_action"] != "stop"})[-days:]
-    since, keep = (dates[0] if dates else ""), set(dates)
+    # the last `days` calendar days with a call (there can be several cycles a day)
+    keep_days = set(sorted({r["date"][:10] for r in rows if r["model_action"] != "stop"})[-days:])
+    since = min(keep_days) if keep_days else ""
+    keep = {r["date"] for r in rows if r["model_action"] != "stop" and r["date"][:10] in keep_days}
 
     def row(r):
         out = {"date": r["date"], "action": r["model_action"], "confidence": float(r["confidence"] or 0),

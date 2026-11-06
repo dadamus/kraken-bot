@@ -12,10 +12,11 @@ from . import config
 from .i18n import t
 
 
-def fetch_ohlc(pair, days=60):
+def fetch_ohlc(pair, days=60, interval=1440):
+    """Candles (interval in minutes, 1440 = daily). Returns (closed candles, current price)."""
     since = int((datetime.now(timezone.utc) - timedelta(days=days)).timestamp())
     r = requests.get(f"{config.KRAKEN}/0/public/OHLC",
-                     params={"pair": pair, "interval": 1440, "since": since},
+                     params={"pair": pair, "interval": interval, "since": since},
                      headers=config.UA, timeout=20)
     r.raise_for_status()
     data = r.json()
@@ -23,10 +24,16 @@ def fetch_ohlc(pair, days=60):
         raise RuntimeError(f"Kraken: {data['error']}")
     key = next(k for k in data["result"] if k != "last")
     rows = data["result"][key]
-    # [time, open, high, low, close, vwap, volume, count]; the last candle is today's, still open
+    # [time, open, high, low, close, vwap, volume, count]; the last candle is still open
     candles = [{"t": int(c[0]), "o": float(c[1]), "h": float(c[2]), "l": float(c[3]),
                 "c": float(c[4]), "v": float(c[6])} for c in rows]
-    return candles[:-1], candles[-1]["c"]  # (closed days, current price)
+    return candles[:-1], candles[-1]["c"]  # (closed candles, current price)
+
+
+def fetch_hourly(pair, hours=24):
+    """The last `hours` closed hourly candles: the intraday path the daily candles do not show."""
+    closed, _ = fetch_ohlc(pair, days=(hours + 2) / 24, interval=60)
+    return closed[-hours:]
 
 
 def fetch_price(pair):
