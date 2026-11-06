@@ -160,7 +160,8 @@ def sync_live(cfg, state, prices):
         old = state["positions"].get(pair, {})  # the balance knows nothing about our stop levels
         state["positions"][pair] = {"coin": coin, "entry_price": entry, "entry_source": source,
                                     "stop_price": old.get("stop_price") if coin >= min_coin else None,
-                                    "exchange_stop": old.get("exchange_stop")}  # reconciled by exchange_stops
+                                    "exchange_stop": old.get("exchange_stop"),  # reconciled by exchange_stops
+                                    "peak_price": old.get("peak_price") if coin >= min_coin else None}
     if not state.get("synced_at"):  # first live start: the reference point for return and drawdown
         state["start_eur"] = round(portfolio.equity_of(state, prices), 2)
     if not state.get("ledger_checked"):  # only flows after this moment move the reference point

@@ -12,7 +12,7 @@ The position keeps {"txid", "level", "volume"} in pos["exchange_stop"]. Take-pro
 import math
 from datetime import datetime
 
-from . import kraken, portfolio
+from . import alerts, kraken, portfolio
 from .i18n import t
 
 USERREF = 73101  # marks the bot's own stop orders
@@ -128,6 +128,8 @@ def sync(cfg, state, info, prices, live=True):
                 print(t("exchange_stop_placed", pair=pair, level=want[0], volume=want[1]))
             else:
                 pos["exchange_stop"] = None
+        alerts.problem(state, "exchange_stop")
     except Exception as e:
         print(t("exchange_stop_failed", err=e))
+        alerts.problem(state, "exchange_stop", t("alert_exchange_stop", err=str(e)[:300]))
     return rows

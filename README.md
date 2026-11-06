@@ -199,6 +199,7 @@ environment. Schedule `bot.py` daily and `bot.py --ha` every 15 minutes with cro
 | `max_drawdown_pct` / `halt_days` | 20 / 7 | Equity down 20% from the start → no new buys for a week (stops keep working) |
 | `intraday_stops` | `true` | Check stops on every refresh, not only once a day |
 | `exchange_stops` | `true` | Live mode: keep the stop as a stop-loss order on Kraken (needs Cancel & Close Orders) |
+| `trailing_stop_atr` | 2 | Trailing stop: keep the stop this many daily ATRs below the highest price since the purchase (only raises it; `0` = off) |
 
 Exposure limits only restrict **new** buys; an existing position above a limit is never sold because of it.
 
@@ -231,6 +232,16 @@ default) and sells with a market order as soon as one is breached; with that che
 checked every `ha_refresh_minutes`. With a stop resting on Kraken this check is the backup: it sells only
 when the price is more than 1% below the order's level, i.e. the exchange did not sell. A stop-loss order
 also becomes a market sell once triggered, so in a fast crash the sale can still happen below the level.
+
+**Trailing stop.** On every refresh the bot remembers the highest price since the purchase and keeps the
+stop `trailing_stop_atr` daily ATRs (default 2) below it. It only ever raises the stop, by at least 0.1 ATR
+at a time, so a rally locks in part of the gain without waiting for the model; the stop order on Kraken
+follows. The model may still raise the stop further.
+
+**Alerts.** With `home_assistant.notify` set, the bot also sends a push notification when it needs
+attention: a model cycle (daily or extra) fails, refreshes fail three times in a row (and again when they
+work), or the stop order cannot be placed or checked on Kraken. The same alert repeats at most every
+6 hours, and a "resolved" message follows when the problem is gone.
 
 **After a sale** the EUR stays on the account. Buying back is decided by the next cycle (the extra one a
 few hours after the stop, or the daily one), within the limits above. The model sees the stop sales of the last 7 days and is told not to buy back without a new reason.

@@ -133,7 +133,7 @@ def test_paper_buy_and_sell_with_fees(cfg):
 
     portfolio.paper_execute(cfg, state, "XBTEUR", {"side": "sell", "coin": pos["coin"]}, 110.0)
     assert state["eur"] == pytest.approx(800 + coin * 110 * 0.999 * 0.996)
-    assert pos == {"coin": 0.0, "entry_price": None, "stop_price": None}
+    assert pos == {"coin": 0.0, "entry_price": None, "stop_price": None, "peak_price": None}
 
 
 def test_second_buy_averages_entry_and_replaces_stop(cfg):

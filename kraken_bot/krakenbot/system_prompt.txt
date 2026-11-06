@@ -63,7 +63,8 @@ Respond with JSON in this format (one decision per pair):
     "stop_price": price in EUR at which your thesis no longer holds (e.g. below support), or null.
                   With buy: the stop of the new position. Code keeps it at least 1 ATR below the price and
                   no further than stop_loss_pct; without it 2 ATR is used. With hold and an open position you
-                  may raise the stop (e.g. below a new support), it cannot be lowered; a position without a
+                  may raise the stop (e.g. below a new support), it cannot be lowered (code also trails it
+                  trailing_stop_atr daily ATRs below the highest price since the purchase); a position without a
                   stop (stop_price null in portfolio.positions) gets the one you give. Current stops are in
                   portfolio.positions,
     "reasoning": "1-3 sentences"}

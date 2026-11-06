@@ -9,6 +9,7 @@ Container entry point (Home Assistant add-on or standalone Docker): runs the bot
   model cycle when an event warrants one (krakenbot/triggers.py),
 - the dashboard panel (krakenbot/panel.py): a read-only page on port 8099, in Home Assistant through
   ingress (sidebar "Kraken bot"),
+- alerts to the phone (home_assistant.notify) when a cycle fails or refreshes fail several times in a row,
 - between refreshes a cheap price check every stop_check_seconds (public Ticker only): when a held pair
   is at or beyond its stop / take-profit level the refresh runs at once instead of up to
   refresh_minutes later.
@@ -29,7 +30,7 @@ from pathlib import Path
 
 import requests
 
-from krakenbot import market, panel, risk  # the watcher uses exactly the guard's thresholds
+from krakenbot import alerts, i18n, market, panel, risk  # the watcher uses exactly the guard's thresholds
 
 APP = Path(__file__).resolve().parent
 OPTIONS = Path(os.environ.get("ADDON_OPTIONS", "/data/options.json"))
@@ -114,8 +115,19 @@ def stop_hits(live):
 
 
 def run(*args):
+    """Runs bot.py; its output goes to the add-on log. Returns (exit code, last error line)."""
     print(f"[{datetime.now():%Y-%m-%d %H:%M}] bot.py {' '.join(args)}".rstrip(), flush=True)
-    subprocess.run([sys.executable, "-u", str(APP / "bot.py"), *args])
+    done = subprocess.run([sys.executable, "-u", str(APP / "bot.py"), *args], stderr=subprocess.PIPE,
+                          text=True, encoding="utf-8", errors="replace")
+    if done.stderr:
+        sys.stderr.write(done.stderr)
+        sys.stderr.flush()
+    lines = [x.strip() for x in (done.stderr or "").splitlines() if x.strip()]
+    return done.returncode, (lines[-1][:300] if lines else "")
+
+
+def load_cfg():
+    return json.loads((DATA / "config.json").read_text(encoding="utf-8"))
 
 
 def main():
@@ -134,6 +146,8 @@ def main():
     os.environ["BOT_LANGUAGE"] = opts.get("language") or "en"
     os.environ["BOT_ENTRY_PRICES"] = json.dumps(opts.get("entry_prices") or {})
     ensure_config(in_ha)
+    i18n.set_language()  # alerts in the add-on language
+    watch_runs = alerts.RunWatch(load_cfg)
     # the dashboard page: in Home Assistant through ingress only, in Docker on the published port
     panel.serve({k: opts.get(k) for k in ("language", "live", "run_time")},
                 int(os.environ.get("PANEL_PORT", "8099")), panel.INGRESS_PROXY if in_ha else None)
@@ -145,7 +159,7 @@ def main():
           f" stop check {'every ' + str(watch) + ' s' if watch else 'off'},"
           f" mode {'LIVE' if cycle_args else 'paper'}, language {os.environ['BOT_LANGUAGE']}", flush=True)
 
-    run("--ha", *cycle_args)
+    watch_runs.refresh(*run("--ha", *cycle_args))
     last_refresh = time.monotonic()
     last_trigger = -WATCH_COOLDOWN
     last_minute = datetime.now().strftime("%H:%M")
@@ -157,16 +171,16 @@ def main():
         done = LAST_RUN.read_text().strip() if LAST_RUN.exists() else ""
         if minute >= opts["run_time"] and done != today:
             LAST_RUN.write_text(today)  # written before the run: a failing cycle is not retried every minute
-            run(*cycle_args)
+            watch_runs.cycle(*run(*cycle_args))
             last_refresh = time.monotonic()
         elif time.monotonic() - last_refresh >= refresh * 60 or (new_minute and ha_lost_states()):
-            run("--ha", *cycle_args)
+            watch_runs.refresh(*run("--ha", *cycle_args))
             last_refresh = time.monotonic()
         elif watch and time.monotonic() - last_trigger >= WATCH_COOLDOWN:
             hits = stop_hits(bool(cycle_args))
             if hits:
                 print(f"[{now:%H:%M:%S}] stop / take-profit level reached: {', '.join(hits)}", flush=True)
-                run("--ha", *cycle_args)
+                watch_runs.refresh(*run("--ha", *cycle_args))
                 last_refresh = last_trigger = time.monotonic()
         time.sleep(watch if watch else 60 - datetime.now().second)
 

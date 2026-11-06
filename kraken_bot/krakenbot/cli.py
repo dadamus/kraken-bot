@@ -12,9 +12,10 @@ import argparse
 import copy
 import sys
 import time
+import traceback
 from datetime import datetime
 
-from . import (claude, config, costs, evaluation, exchange_stops, forecast, guard, homeassistant, indicators, journal, kraken, macro,
+from . import (alerts, claude, config, costs, evaluation, exchange_stops, forecast, guard, homeassistant, indicators, journal, kraken, macro,
                market, offline, portfolio, risk, triggers)
 from .i18n import set_language, t
 
@@ -49,6 +50,13 @@ def refresh(cfg, state, live, mode):
     event warrants an extra cycle (a stop fired some hours ago, a large move since the last cycle)."""
     prices = {pair: market.fetch_price(pair) for pair in cfg["pairs"]}
     info = kraken.sync_live(cfg, state, prices) if live else None
+    atr = (state.get("last_cycle") or {}).get("atr") or {}
+    trailed = False
+    for pair, price in prices.items():  # the stop follows the highest price since the purchase
+        level = risk.trail_stop(cfg, state["positions"][pair], price, atr.get(pair))
+        if level:
+            print(t("trailing_raised", pair=pair, level=level, peak=state["positions"][pair]["peak_price"]))
+            trailed = True
     rows = guard.guard(cfg, state, prices, live, info)
     rows += exchange_stops.sync(cfg, state, info, prices, live)
     if rows:
@@ -61,7 +69,8 @@ def refresh(cfg, state, live, mode):
         chart = market.optional(f"chart {pair}", forecast.rebuild, pair, log)
         if chart:  # a failed source is simply retried on the next refresh
             charts[pair], built = chart, True
-    if live or rows or built:
+    alerted = alerts.flush(cfg, state)
+    if live or rows or built or trailed or alerted:
         portfolio.save_state(state)
     homeassistant.ha_publish(cfg, state, prices, mode, rows)
 
@@ -70,7 +79,11 @@ def refresh(cfg, state, live, mode):
         triggers.count_extra(state)
         portfolio.save_state(state)
         print(t("extra_cycle", why=triggers.describe(reason)))
-        daily_cycle(cfg, state, live, False, mode, trigger=reason)
+        try:
+            daily_cycle(cfg, state, live, False, mode, trigger=reason)
+        except Exception as e:  # already counted: it is not retried on every refresh
+            traceback.print_exc()
+            alerts.send(cfg, t("alert_title"), t("alert_extra_failed", err=str(e)[:300]))
 
 
 def daily_cycle(cfg, state, live, offline_mode, mode, trigger=None):
@@ -129,6 +142,7 @@ def daily_cycle(cfg, state, live, offline_mode, mode, trigger=None):
     for row in rows:
         row["eur"], row["equity_eur"] = round(book["eur"], 2), round(equity, 2)
     state["last_summary"] = summary
+    alerts.flush(cfg, state)
     triggers.remember_cycle(state, markets, prices)
     journal.log_rows(rows)
     ev = market.optional("evaluation", evaluation.evaluation, cfg, book, journal.read_log(), candles, prices)

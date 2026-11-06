@@ -43,6 +43,22 @@ def tighten_stop(cfg, pos, signal, price, atr=None):
     return None
 
 
+def trail_stop(cfg, pos, price, atr):
+    """Trailing stop: remembers the highest price since the purchase and keeps the stop trailing_stop_atr
+    daily ATRs below it. Only raises the stop, by at least 0.1 ATR at a time (so the order on Kraken is
+    not replaced for every small tick). Returns the new level or None."""
+    k = cfg["risk"].get("trailing_stop_atr", 2.0)
+    if not k or not atr or pos["coin"] * price < cfg["risk"]["min_trade_eur"]:
+        return None
+    pos["peak_price"] = max(pos.get("peak_price") or price, price)
+    level = round(pos["peak_price"] - k * atr, 8)
+    current = pos.get("stop_price")
+    if level >= price or (current and level < current + 0.1 * atr):
+        return None
+    pos["stop_price"] = level
+    return level
+
+
 def protective_exit(cfg, pos, price):
     """Stop-loss / take-profit: always active, regardless of the model and of a halt. With a stop order
     resting on Kraken the bot's own stop is only the backup: it acts when the price is well below that

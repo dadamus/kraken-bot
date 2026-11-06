@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.9.0
+- Alerts to the phone (`home_assistant.notify`) when the bot needs attention: a failed model cycle (daily or
+  extra, with the error), refreshes failing three times in a row (and when they work again), or a stop order
+  that cannot be placed or checked on Kraken. At most every 6 hours per problem, with a "resolved" message.
+- A failed extra cycle no longer fails the whole refresh: it is logged, alerted and not retried at once.
+- Trailing stop: the stop follows the highest price since the purchase, `trailing_stop_atr` daily ATRs below
+  it (default 2, `0` = off). Only raises the stop; the order on Kraken follows.
+
 ## 2.8.0
 - The add-on's own dashboard: **Kraken bot** in the Home Assistant sidebar (ingress). Status, equity and
   the bot versus buy and hold, per pair the position, the stop (🛡️ when it rests on Kraken), the model's

@@ -125,7 +125,7 @@ def test_sync_uses_real_balance_and_keeps_stop(cfg, fake_kraken):
     pos = state["positions"]["XBTEUR"]
     assert state["eur"] == 50.5
     assert pos == {"coin": 0.01, "entry_price": 60000, "entry_source": "manual", "stop_price": 65000,
-                   "exchange_stop": None}
+                   "exchange_stop": None, "peak_price": None}
     assert state["start_eur"] == pytest.approx(750.5)  # the first sync sets the reference point
     start = state["start_eur"]
 

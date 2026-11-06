@@ -48,6 +48,7 @@ def paper_execute(cfg, state, pair, order, price):
         pos["entry_price"] = (old_cost + order["eur"]) / pos["coin"]
         if order.get("stop_price"):  # adding to a position: the stop of the latest thesis applies
             pos["stop_price"] = order["stop_price"]
+        pos["peak_price"] = max(pos.get("peak_price") or fill, fill)
         return fill, coin
     if order["side"] == "sell":
         fill = price * (1 - slip)
@@ -56,5 +57,6 @@ def paper_execute(cfg, state, pair, order, price):
         pos["coin"] -= coin
         if pos["coin"] < 1e-9:
             pos["coin"], pos["entry_price"], pos["stop_price"] = 0.0, None, None
+            pos["peak_price"] = None
         return fill, coin
     return None, 0.0

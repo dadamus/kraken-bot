@@ -19,7 +19,8 @@
     "max_drawdown_pct": 20,
     "halt_days": 7,
     "intraday_stops": true,
-    "exchange_stops": true
+    "exchange_stops": true,
+    "trailing_stop_atr": 2
   },
   "extra_cycles": {
     "enabled": true,
