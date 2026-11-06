@@ -83,6 +83,10 @@ def daily_cycle(cfg, state, live, offline_mode, mode, trigger=None):
     pair_info = kraken.sync_live(cfg, state, prices) if live else None
     context = {"this_cycle": triggers.cycle_info(trigger),
                **load_context(pairs, state, prices, candles, closed_all, offline_mode)}
+    # what the model saw, kept for the dashboard panel
+    state["last_context"] = {"date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                             **{k: context.get(k) for k in ("this_cycle", "fear_greed", "us_markets", "coinbase_premium",
+                                                            "derivatives", "implied_vol", "market_overview")}}
 
     # positions outside the pair list (e.g. after removing a pair from config.json) - no price, no value
     for pair, p in state["positions"].items():

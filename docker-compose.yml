@@ -5,5 +5,7 @@ services:
     container_name: kraken-bot
     restart: unless-stopped
     env_file: .env
+    ports:
+      - "8099:8099"   # the dashboard panel: http://localhost:8099
     volumes:
       - ./data:/config   # config.json, state, decision log - created on first start

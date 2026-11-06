@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.8.0
+- The add-on's own dashboard: **Kraken bot** in the Home Assistant sidebar (ingress). Status, equity and
+  the bot versus buy and hold, per pair the position, the stop (🛡️ when it rests on Kraken), the model's
+  latest call and a chart with the forecast, the bot's trades and the extra-cycle band; the market and the
+  macro calendar, performance and the decision log. Read-only, follows the add-on language and light /
+  dark mode, nothing to install. Standalone Docker: `http://localhost:8099`.
+- The cycle keeps what the model saw (sentiment, US markets, Coinbase premium, funding) for the panel.
+
 ## 2.7.0
 - Live mode: the stop also rests on Kraken as a stop-loss order for the whole position, so it protects
   the position even when Home Assistant, the add-on or the internet is down. The bot places it, moves it

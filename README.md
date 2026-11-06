@@ -80,6 +80,25 @@ or Studio Code Server), then Add-on store → ⋮ → **Check for updates**. The
 manifest. The bot's data then lives in `/addon_configs/local_kraken_bot/`.
 </details>
 
+### Dashboard panel
+
+The add-on has its own dashboard: **Kraken bot** in the Home Assistant sidebar (ingress, enable "Show in
+sidebar" on the add-on page if it is not there). Nothing to paste or install, it updates with the add-on.
+It follows the add-on `language` and the browser's light/dark mode, refreshes every minute and is
+read-only: it can neither trade nor change settings.
+
+- status: mode, last sync, next cycle, extra cycles today, a trading halt,
+- equity and result since start, the bot versus buy and hold, share in crypto, the model's API cost,
+- per pair: price, position, result, the stop (🛡️ = the stop order rests on Kraken), the model's latest
+  call with its chance of a rise, a 30-day chart with the 3-day forecast, the bot's buys / sells / stops,
+  the entry and stop levels, and the price band outside which an extra cycle starts,
+- the latest summary, equity over time, the market (Fear & Greed, Nasdaq, S&P 500, VIX, yields, dollar,
+  Coinbase premium, dominance, funding) and this week's US macro events,
+- performance (calls, forecasts, stop sales, daily vs extra cycles) and the decision log with filters.
+
+The YAML dashboards in `dashboards/` stay available, e.g. for the mobile app's home screen. In standalone
+Docker the panel is on `http://localhost:8099` (port in `docker-compose.yml`, `PANEL_PORT` to change it).
+
 ### Home Assistant entities
 
 | Entity | State | Attributes |
@@ -307,6 +326,7 @@ add-on, also add the code to `language: list(en|pl)` in `config.yaml` and a file
 | `kraken_bot/krakenbot/locales/` | Texts the user reads, one TOML file per language |
 | `kraken_bot/krakenbot/system_prompt.txt` | The model's system prompt (always English; the answer language is filled in) |
 | `kraken_bot/addon.py` | Scheduler / container entry point (add-on and Docker) |
+| `kraken_bot/krakenbot/panel.py`, `panel/index.html` | The add-on's dashboard panel (read-only web page, Home Assistant ingress) |
 | `kraken_bot/config.yaml`, `Dockerfile`, `translations/`, `DOCS.md` | The Home Assistant add-on |
 | `kraken_bot/config.example.json` | Default configuration, copied to the data folder on the first start |
 | `dashboards/` | Home Assistant dashboards (English, Polish) |

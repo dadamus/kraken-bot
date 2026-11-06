@@ -15,8 +15,10 @@ https://github.com/dadamus/kraken-bot
 3. On the first start the add-on creates `config.json` in `/addon_configs/<id>_kraken_bot/`
    (paper mode, 1000 virtual EUR). Edit it with the Samba share, Studio Code Server or File editor
    add-on to change pairs and risk rules - no rebuild needed.
-4. Add the dashboard: `dashboards/ha_dashboard.yaml` (English) or `dashboards/ha_dashboard.pl.yaml`
-   (Polish) from the repository, pasted into a new dashboard's raw configuration editor. The price and
+4. Open **Kraken bot** in the sidebar: the add-on's own dashboard (read-only; turn on "Show in sidebar"
+   on this page if it is missing). Optionally also add the YAML dashboard: `dashboards/ha_dashboard.yaml`
+   (English) or `dashboards/ha_dashboard.pl.yaml` (Polish) from the repository, pasted into a new
+   dashboard's raw configuration editor. The price and
    forecast charts need the ApexCharts card: Settings → Marketplace (HACS before 2026.11) → "apexcharts-card".
 
 ## Options

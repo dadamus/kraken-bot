@@ -7,6 +7,8 @@ Container entry point (Home Assistant add-on or standalone Docker): runs the bot
 - a refresh (bot.py --ha: stop-loss / take-profit on the current price + Home Assistant entities)
   every refresh_minutes, and immediately after Home Assistant restarts; the refresh itself runs an extra
   model cycle when an event warrants one (krakenbot/triggers.py),
+- the dashboard panel (krakenbot/panel.py): a read-only page on port 8099, in Home Assistant through
+  ingress (sidebar "Kraken bot"),
 - between refreshes a cheap price check every stop_check_seconds (public Ticker only): when a held pair
   is at or beyond its stop / take-profit level the refresh runs at once instead of up to
   refresh_minutes later.
@@ -27,7 +29,7 @@ from pathlib import Path
 
 import requests
 
-from krakenbot import market, risk  # the watcher uses exactly the guard's thresholds
+from krakenbot import market, panel, risk  # the watcher uses exactly the guard's thresholds
 
 APP = Path(__file__).resolve().parent
 OPTIONS = Path(os.environ.get("ADDON_OPTIONS", "/data/options.json"))
@@ -132,6 +134,9 @@ def main():
     os.environ["BOT_LANGUAGE"] = opts.get("language") or "en"
     os.environ["BOT_ENTRY_PRICES"] = json.dumps(opts.get("entry_prices") or {})
     ensure_config(in_ha)
+    # the dashboard page: in Home Assistant through ingress only, in Docker on the published port
+    panel.serve({k: opts.get(k) for k in ("language", "live", "run_time")},
+                int(os.environ.get("PANEL_PORT", "8099")), panel.INGRESS_PROXY if in_ha else None)
 
     cycle_args = ["--live"] if opts.get("live") else []
     refresh = int(opts.get("refresh_minutes") or opts.get("ha_refresh_minutes") or 15)
