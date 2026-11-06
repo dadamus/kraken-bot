@@ -5,11 +5,13 @@ from pathlib import Path
 
 import anthropic
 
-from . import journal
+from . import costs, journal
 from .i18n import language_name, t
 
 # The prompt is always English (the model works best with one prompt); only the answer's language changes.
 # It lives in a text file so it reads and diffs like prose. {LANGUAGE} is filled in at call time.
+last_usage = None  # token counts of the latest call, read by the cycle for the cost tracking
+
 SYSTEM_PROMPT = (Path(__file__).resolve().parent / "system_prompt.txt").read_text(encoding="utf-8").rstrip()
 
 
@@ -72,6 +74,8 @@ def ask_claude(cfg, markets, news, portfolio, context):
         output_config={"effort": cfg.get("effort", "high"),
                        "format": {"type": "json_schema", "schema": decision_schema(cfg["pairs"])}},
         system=system_prompt(), messages=[{"role": "user", "content": user}])
+    global last_usage
+    last_usage = costs.usage_of(resp)  # billed even when the answer is unusable
     if resp.stop_reason != "end_turn":
         raise RuntimeError(t("claude_incomplete", reason=resp.stop_reason,
                              details=getattr(resp, "stop_details", None)))

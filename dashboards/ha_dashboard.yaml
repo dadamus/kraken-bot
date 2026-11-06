@@ -48,6 +48,13 @@ views:
             color: purple
             grid_options:
               columns: full
+          - type: tile
+            entity: sensor.kraken_bot_api_cost
+            name: Model API cost (month)
+            icon: mdi:currency-usd
+            color: amber
+            grid_options:
+              columns: full
 
       # ------------------------------------------------------------------ positions and decision
       - type: grid
@@ -488,6 +495,42 @@ views:
               direction hit rate **{{ '%.0f' | format(c.hit_rate_pct or 0) }}%**, Brier **{{ c.brier }}** (0.25 = coin flip, lower = better), settled {{ c.settled }}.
               {%- else %}
               nothing to settle yet - first results 3 days after the first forecast.
+              {%- endif %}
+              {%- macro chg(v) -%}{{ '–' if v is none else '%+.2f%%' | format(v) }}{%- endmacro -%}
+              {%- set names = {'XBTEUR': 'BTC', 'ETHEUR': 'ETH', 'SOLEUR': 'SOL'} %}
+              {%- set st = state_attr(e, 'stops') %}
+              {%- if st %}
+
+              **What the price did after stop sales** <font color="grey">(lower = the stop saved money, higher = it sold too early)</font>
+
+              | when | pair | sold at | after 1 day | after 3 days | after 7 days |
+              |:--|:--|--:|--:|--:|--:|
+              {%- for r in (st.recent or []) | reverse %}
+              | {{ r.date[5:] }} | {{ names.get(r.pair, r.pair) }} | {{ '{:,.2f}'.format(r.price).replace(',', ' ') }} | {{ chg(r.after_1d_pct) }} | {{ chg(r.after_3d_pct) }} | {{ chg(r.after_7d_pct) }} |
+              {%- endfor %}
+              | **average** ({{ st.stops }}) | | | {{ chg(st.avg_1d_pct) }} | {{ chg(st.avg_3d_pct) }} | {{ chg(st.avg_7d_pct) }} |
+
+              {%- if st.settled_3d %}
+
+              Lower after 3 days: **{{ st.lower_after_3d }} of {{ st.settled_3d }}** settled.
+              {%- endif %}
+              {%- endif %}
+              {%- set bc = state_attr(e, 'by_cycle') or {} %}
+              {%- if bc %}
+
+              **Daily and extra cycles**
+
+              | cycles | calls | trades | settled forecasts | hit rate | Brier |
+              |:--|--:|--:|--:|--:|--:|
+              {%- for k, v in bc.items() %}
+              | {{ {'daily': '⏰ daily', 'extra': '⚡ extra'}.get(k, k) }} | {{ v.calls }} | {{ v.trades }} | {{ v.settled }} | {{ ('%.0f%%' | format(v.hit_rate_pct)) if v.hit_rate_pct is not none else '–' }} | {{ v.brier if v.brier is not none else '–' }} |
+              {%- endfor %}
+              {%- endif %}
+              {%- set u = 'sensor.kraken_bot_api_cost' %}
+              {%- set last = state_attr(u, 'last') %}
+              {%- if state_attr(u, 'month') %}
+
+              **Model cost:** {{ '%.2f' | format(states(u) | float(0)) }} USD in {{ state_attr(u, 'month') }} ({{ state_attr(u, 'calls') }} calls{% if last %}, last {{ '%.3f' | format(last.cost_usd) }} USD{% endif %}), in total {{ '%.2f' | format(state_attr(u, 'total_cost_usd') | float(0)) }} USD <font color="grey">(estimate from list prices)</font>
               {%- endif %}
               {%- if c.settled < 30 %}
 

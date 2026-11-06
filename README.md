@@ -90,7 +90,8 @@ manifest. The bot's data then lives in `/addon_configs/local_kraken_bot/`.
 | `sensor.kraken_bot_<pair>` | position value in EUR | coins, price, entry price and its source, stop, position result, buy and hold |
 | `sensor.kraken_bot_<pair>_forecast` | expected 3-day change, % (theoretical, see below) | last 60 daily closes, the 3-day path with a ±1σ band, p_up_3d, time of the forecast; updated by the daily cycle (until then a refresh builds it from the latest call in the log) |
 | `sensor.kraken_bot_decision` | time of the last decision | summary, decisions with reasoning, the last 30 log rows |
-| `sensor.kraken_bot_performance` | 3-day forecast hit rate, % | full performance breakdown |
+| `sensor.kraken_bot_performance` | 3-day forecast hit rate, % | full performance breakdown, incl. stops and daily vs extra cycles |
+| `sensor.kraken_bot_api_cost` | model API cost this month, USD (estimate from list prices) | calls and tokens this month, totals, the last call |
 
 The forecast line on the charts is theoretical. The model only gives the probability that the price is
 higher in 3 days (`p_up_3d`), not a target. Assuming a normal 3-day return with the current daily volatility,
@@ -214,7 +215,12 @@ Without measurement there is no way to tell whether the model adds anything. So:
 - `p_up_3d` forecasts are scored with the direction hit rate, the Brier score (0.25 = coin flip, lower is
   better) and calibration (do ~0.6 forecasts come true ~60% of the time?);
 - benchmarks with fees since the first decision: **buy and hold** and **trend** (in the market while the daily
-  close is above SMA50). If the bot does not beat them over a longer period, the model adds no value.
+  close is above SMA50). If the bot does not beat them over a longer period, the model adds no value;
+- every automatic stop / take-profit sale is settled the same way: the price 1, 3 and 7 days after the sale
+  (lower = the stop saved money, higher = it sold too early);
+- the forecast scores are also split into daily and extra cycles, to see whether the extra cycles help;
+- the cost of every model call (tokens, USD at list prices, with the model that actually answered) is
+  summed per month - compare it with what the bot earns.
 
 You can see this in `--report`, in the log of every cycle, in `sensor.kraken_bot_performance` and in the
 dashboard's "Performance" section. Expect to need a few dozen settled forecasts (1-2 months) before drawing

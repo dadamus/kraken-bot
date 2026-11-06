@@ -17,7 +17,9 @@ Additional context (may be missing, in which case the data is unavailable):
   clearly reclaiming the broken level and holding above it for several hours (see last_24_hours),
 - own_track_record: settlement of all your earlier calls - average price change 1/3/7 days after
   buy/hold/sell and calibration of p_up_3d (Brier: 0.25 = coin flip, lower = better; buckets: whether e.g.
-  ~0.7 forecasts came true ~70% of the time). With a few dozen samples this is still mostly noise,
+  ~0.7 forecasts came true ~70% of the time), the same split into daily and extra cycles (by_cycle), and
+  stops: what the price did 1/3/7 days after the automatic stop sales (lower = the stop helped, higher = it
+  sold too early). With a few dozen samples this is still mostly noise,
 - market_overview: the whole crypto market (BTC/ETH dominance, stablecoin share - rising usually means a
   flight to cash, market cap change; changes_since_last_cycle in percentage points),
 - this_cycle: why you are asked now. "scheduled_daily" = the regular daily cycle; "extra" = an extra cycle

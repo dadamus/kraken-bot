@@ -87,6 +87,10 @@ ev_calibration = "Prognoza p_up_3d: rozliczonych {n}, trafność kierunku {hit},
 ev_bucket = "  p {range}: {n:>3} prognoz, średnio {avg:.2f} -> wzrosło {up:.0f}%"
 ev_nothing = "Prognoza p_up_3d: jeszcze nic do rozliczenia (pierwsze wyniki 3 dni po pierwszej prognozie)."
 ev_noise = "Uwaga: mniej niż {n} rozliczonych prognoz, a pary są mocno skorelowane - na razie to głównie szum."
+ev_cycle = "  cykle {kind:<5}: {calls} ocen, {trades} transakcji, p_up_3d rozliczone {n}, trafność {hit}, Brier {brier}"
+ev_stops = "Automatyczne sprzedaże (stop / take-profit): {n} -> cena po 1 / 3 / 7 dniach {rets} (niżej po 3 dniach: {lower} z {settled}; niżej = stop uratował pieniądze)"
+ev_api_cost = "Koszt API modelu: {month} {cost:.2f} USD ({calls} wywołań), łącznie {total:.2f} USD ({total_calls} wywołań)"
+api_cost_line = "  wywołanie modelu: {cost:.3f} USD ({tin} tokenów wejścia / {tout} wyjścia); w tym miesiącu {month:.2f} USD, {calls} wywołań"
 
 # ---- Home Assistant
 ha_missing = "  [HA] pominięto: brak home_assistant.url w config.json albo HA_TOKEN"
@@ -97,6 +101,7 @@ ha_return = "Kraken bot wynik"
 ha_free_eur = "Kraken bot wolne EUR"
 ha_decision = "Kraken bot ostatnia decyzja"
 ha_performance = "Kraken bot trafność 3d"
+ha_api_cost = "Kraken bot koszt API modelu (miesiąc)"
 ha_forecast = "Kraken bot {pair} prognoza 3d"
 ha_no_decision = "brak"
 ha_notify_message = "{qty} @ {price} ({rule}). Kapitał {equity:,.2f} EUR"

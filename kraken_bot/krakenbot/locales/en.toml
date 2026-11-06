@@ -87,6 +87,10 @@ ev_calibration = "p_up_3d forecast: settled {n}, direction hit rate {hit}, Brier
 ev_bucket = "  p {range}: {n:>3} forecasts, average {avg:.2f} -> went up {up:.0f}%"
 ev_nothing = "p_up_3d forecast: nothing to settle yet (first results 3 days after the first forecast)."
 ev_noise = "Note: fewer than {n} settled forecasts and the pairs are highly correlated - mostly noise so far."
+ev_cycle = "  {kind:<5} cycles: {calls} calls, {trades} trades, p_up_3d settled {n}, hit rate {hit}, Brier {brier}"
+ev_stops = "Automatic stop / take-profit sales: {n} -> price after 1 / 3 / 7 days {rets} (lower after 3 days: {lower} of {settled}; lower = the stop saved money)"
+ev_api_cost = "Model API cost: {month} {cost:.2f} USD ({calls} calls), in total {total:.2f} USD ({total_calls} calls)"
+api_cost_line = "  model call: {cost:.3f} USD ({tin} input / {tout} output tokens); this month {month:.2f} USD, {calls} calls"
 
 # ---- Home Assistant
 ha_missing = "  [HA] skipped: home_assistant.url in config.json or HA_TOKEN is missing"
@@ -97,6 +101,7 @@ ha_return = "Kraken bot return"
 ha_free_eur = "Kraken bot free EUR"
 ha_decision = "Kraken bot last decision"
 ha_performance = "Kraken bot 3-day hit rate"
+ha_api_cost = "Kraken bot model API cost (month)"
 ha_forecast = "Kraken bot {pair} 3-day forecast"
 ha_no_decision = "none"
 ha_notify_message = "{qty} @ {price} ({rule}). Equity {equity:,.2f} EUR"

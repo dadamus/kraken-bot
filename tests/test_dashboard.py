@@ -34,7 +34,16 @@ FULL = {
         "shadow": {"since": "2026-11-03", "trend_rule": "close > SMA50", "buy_and_hold_pct": 3.39, "trend_pct": 0.0},
         "by_action": {"hold": {"signals": 11, "avg_1d_pct": 4.21, "avg_3d_pct": None, "avg_7d_pct": None,
                                "settled_3d": 0, "up_3d_pct": None}},
-        "p_up_3d": {"settled": 0, "brier": None, "hit_rate_pct": None, "buckets": []}}),
+        "p_up_3d": {"settled": 0, "brier": None, "hit_rate_pct": None, "buckets": []},
+        "by_cycle": {"daily": {"calls": 11, "trades": 1, "settled": 0, "hit_rate_pct": None, "brier": None},
+                     "extra": {"calls": 3, "trades": 0, "settled": 3, "hit_rate_pct": 66.7, "brier": 0.21}},
+        "stops": {"stops": 1, "avg_1d_pct": 0.99, "avg_3d_pct": None, "avg_7d_pct": None, "settled_3d": 0,
+                  "lower_after_3d": 0,
+                  "recent": [{"date": "2026-11-05 16:55", "pair": "XBTEUR", "rule": "STOP (level 67900)",
+                              "price": 67420.5, "after_1d_pct": 0.99, "after_3d_pct": None, "after_7d_pct": None}]}}),
+    "sensor.kraken_bot_api_cost": ("0.162", {
+        "month": "2026-11", "calls": 2, "cost_usd": 0.162, "total_calls": 2, "total_cost_usd": 0.162,
+        "last": {"date": "2026-11-06 19:55", "cycle": "extra:stop", "cost_usd": 0.08}}),
 }
 
 EXPECTED = {  # file -> (positions empty row, decision line, no decision, no data)
@@ -75,6 +84,9 @@ def test_dashboard_renders_with_data(path):
     assert "▲ 9.33%" in positions and "67 900" in positions and empty_row in positions
     assert decision_line in decision and "None" not in decision
     assert "+3.62%" in stats and "None" not in stats
+    assert "11-05 16:55 | BTC | 67 420.50 | +0.99% | – | – |" in stats  # the stop and what came after
+    assert "| 66.7" not in stats and "67%" in stats and "0.21" in stats  # extra cycles row
+    assert "0.16 USD" in stats and "0.080 USD" in stats  # model cost
     assert "🛑 stop" in log and "**sell**" in log
 
 
@@ -92,7 +104,8 @@ def test_dashboard_uses_only_known_entities(path):
     text = (ROOT / "dashboards" / path).read_text(encoding="utf-8")
     used = set(re.findall(r"sensor\.kraken_bot_[a-z_]+", text)) - {"sensor.kraken_bot_"}
     pairs = ("xbteur", "etheur", "soleur")
-    known = {f"sensor.kraken_bot_{n}" for n in ("equity", "return", "free_eur", "decision", "performance")}
+    known = {f"sensor.kraken_bot_{n}" for n in ("equity", "return", "free_eur", "decision", "performance",
+                                                 "api_cost")}
     known |= {f"sensor.kraken_bot_{p}" for p in pairs} | {f"sensor.kraken_bot_{p}_forecast" for p in pairs}
     assert used <= known
 

@@ -14,7 +14,7 @@ import sys
 import time
 from datetime import datetime
 
-from . import (claude, config, evaluation, forecast, guard, homeassistant, indicators, journal, kraken, macro,
+from . import (claude, config, costs, evaluation, forecast, guard, homeassistant, indicators, journal, kraken, macro,
                market, offline, portfolio, risk, triggers)
 from .i18n import set_language, t
 
@@ -88,10 +88,15 @@ def daily_cycle(cfg, state, live, offline_mode, mode, trigger=None):
         if pair not in pairs and p["coin"] > 0:
             print(t("untracked_position", pair=pair, coin=p["coin"]))
 
+    cycle = "daily" if not trigger else f"extra:{trigger['kind']}"
     if offline_mode:
         signals, summary = {pair: offline.fake_signal() for pair in pairs}, "OFFLINE TEST"
     else:
-        signals, summary = claude.ask_claude(cfg, markets, news, portfolio_view(state, prices, pairs), context)
+        claude.last_usage = None
+        try:
+            signals, summary = claude.ask_claude(cfg, markets, news, portfolio_view(state, prices, pairs), context)
+        finally:  # a call is paid for even when the cycle fails afterwards
+            note_api_cost(cfg, state, cycle)
     print(t("model_summary", summary=summary))
     made = datetime.now().strftime("%Y-%m-%d %H:%M")
     state["charts"] = {pair: forecast.chart(closed_all[pair], prices[pair], signals[pair], markets[pair], made)
@@ -101,6 +106,8 @@ def daily_cycle(cfg, state, live, offline_mode, mode, trigger=None):
     # at once cannot exceed the limits; at the end the real Kraken balance is read anyway.
     book = copy.deepcopy(state) if live else state
     rows = execute_signals(cfg, state, book, markets, prices, signals, live, pair_info, mode)
+    for row in rows:
+        row["cycle"] = cycle
 
     if live:
         try:
@@ -125,6 +132,17 @@ def daily_cycle(cfg, state, live, offline_mode, mode, trigger=None):
     portfolio.save_state(state)
     print(t("equity_line", equity=equity, start=state["start_eur"]))
     homeassistant.ha_publish(cfg, book, prices, mode, rows)
+
+
+def note_api_cost(cfg, state, cycle):
+    usage = claude.last_usage
+    if not usage:
+        return
+    cost = costs.record(cfg, state, usage, cycle)
+    u = state["api_usage"]
+    print(t("api_cost_line", cost=cost, tin=usage["input_tokens"] + usage["cache_read_tokens"]
+            + usage["cache_write_tokens"], tout=usage["output_tokens"], month=u["cost_usd"], calls=u["calls"]))
+    portfolio.save_state(state)
 
 
 def load_markets(pairs, state, offline_mode):

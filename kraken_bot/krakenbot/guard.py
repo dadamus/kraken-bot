@@ -36,7 +36,7 @@ def guard(cfg, state, prices, live, pair_info=None):
                      "confidence": 0.0, "p_up_3d": None, "size_pct": 100, "executed": order["side"],
                      "rule": order["why"], "qty": round(qty, 8), "eur": 0,
                      "coin": round(book["positions"][pair]["coin"], 8), "equity_eur": 0,
-                     "reasoning": t("guard_reasoning")})
+                     "reasoning": t("guard_reasoning"), "cycle": "guard"})
     if rows and live:
         try:
             time.sleep(2)  # give market orders a moment to settle

@@ -48,6 +48,13 @@ views:
             color: purple
             grid_options:
               columns: full
+          - type: tile
+            entity: sensor.kraken_bot_api_cost
+            name: Koszt API modelu (miesiąc)
+            icon: mdi:currency-usd
+            color: amber
+            grid_options:
+              columns: full
 
       # ------------------------------------------------------------------ pozycje i decyzja
       - type: grid
@@ -488,6 +495,42 @@ views:
               trafność kierunku **{{ '%.0f' | format(c.hit_rate_pct or 0) }}%**, Brier **{{ c.brier }}** (0,25 = rzut monetą, mniej = lepiej), rozliczonych {{ c.settled }}.
               {%- else %}
               jeszcze nic do rozliczenia - pierwsze wyniki 3 dni po pierwszej prognozie.
+              {%- endif %}
+              {%- macro chg(v) -%}{{ '–' if v is none else '%+.2f%%' | format(v) }}{%- endmacro -%}
+              {%- set names = {'XBTEUR': 'BTC', 'ETHEUR': 'ETH', 'SOLEUR': 'SOL'} %}
+              {%- set st = state_attr(e, 'stops') %}
+              {%- if st %}
+
+              **Co robiła cena po sprzedażach ze stopu** <font color="grey">(niżej = stop uratował pieniądze, wyżej = sprzedał za wcześnie)</font>
+
+              | kiedy | para | sprzedano po | po 1 dniu | po 3 dniach | po 7 dniach |
+              |:--|:--|--:|--:|--:|--:|
+              {%- for r in (st.recent or []) | reverse %}
+              | {{ r.date[5:] }} | {{ names.get(r.pair, r.pair) }} | {{ '{:,.2f}'.format(r.price).replace(',', ' ') }} | {{ chg(r.after_1d_pct) }} | {{ chg(r.after_3d_pct) }} | {{ chg(r.after_7d_pct) }} |
+              {%- endfor %}
+              | **średnio** ({{ st.stops }}) | | | {{ chg(st.avg_1d_pct) }} | {{ chg(st.avg_3d_pct) }} | {{ chg(st.avg_7d_pct) }} |
+
+              {%- if st.settled_3d %}
+
+              Niżej po 3 dniach: **{{ st.lower_after_3d }} z {{ st.settled_3d }}** rozliczonych.
+              {%- endif %}
+              {%- endif %}
+              {%- set bc = state_attr(e, 'by_cycle') or {} %}
+              {%- if bc %}
+
+              **Cykle codzienne i dodatkowe**
+
+              | cykle | ocen | transakcji | rozliczone prognozy | trafność | Brier |
+              |:--|--:|--:|--:|--:|--:|
+              {%- for k, v in bc.items() %}
+              | {{ {'daily': '⏰ codzienne', 'extra': '⚡ dodatkowe'}.get(k, k) }} | {{ v.calls }} | {{ v.trades }} | {{ v.settled }} | {{ ('%.0f%%' | format(v.hit_rate_pct)) if v.hit_rate_pct is not none else '–' }} | {{ v.brier if v.brier is not none else '–' }} |
+              {%- endfor %}
+              {%- endif %}
+              {%- set u = 'sensor.kraken_bot_api_cost' %}
+              {%- set last = state_attr(u, 'last') %}
+              {%- if state_attr(u, 'month') %}
+
+              **Koszt modelu:** {{ '%.2f' | format(states(u) | float(0)) }} USD w {{ state_attr(u, 'month') }} (wywołania: {{ state_attr(u, 'calls') }}{% if last %}, ostatnie {{ '%.3f' | format(last.cost_usd) }} USD{% endif %}), łącznie {{ '%.2f' | format(state_attr(u, 'total_cost_usd') | float(0)) }} USD <font color="grey">(szacunek z cennika)</font>
               {%- endif %}
               {%- if c.settled < 30 %}
 

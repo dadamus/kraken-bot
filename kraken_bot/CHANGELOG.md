@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.6.0
+- Stops are settled like the model's calls: the price 1, 3 and 7 days after every automatic stop /
+  take-profit sale (lower = the stop saved money). In `--report`, the cycle log, the performance entity
+  and the model's own track record.
+- The forecast scores are split into daily and extra cycles; the decision log gets a `cycle` column
+  (`daily`, `extra:stop`, `extra:move`, `guard`). Older rows count as daily.
+- Model API cost: tokens and an estimate in USD (list prices of the model that answered) for every call,
+  summed per month. New entity `sensor.kraken_bot_api_cost`; also in `--report` and the cycle log.
+- The cycle count in the evaluation no longer includes stop sales.
+- Dashboard: a model API cost tile, and in Performance the stop sales with the price after them, daily
+  vs extra cycles and the model cost. Re-paste the dashboard after updating.
+
 ## 2.5.0
 - More context for the model from outside crypto (free, no keys; a failing source is skipped):
   - `us_markets`: Nasdaq 100, S&P 500, VIX, the US 10-year yield and the broad dollar index from FRED,

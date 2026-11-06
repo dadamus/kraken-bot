@@ -79,6 +79,10 @@ def ha_publish(cfg, state, prices, mode, new_rows=None):
             ha_set(ha, f"{p}_performance", hit if hit is not None else "unknown", t("ha_performance"),
                    "mdi:bullseye-arrow", "%", **ev)
 
+        usage = state.get("api_usage")
+        if usage:  # entity state = this month's model cost in USD
+            ha_set(ha, f"{p}_api_cost", usage["cost_usd"], t("ha_api_cost"), "mdi:currency-usd", "USD", **usage)
+
         for r in new_rows or []:
             ha_post(ha, "services/logbook/log",
                     {"name": f"Kraken bot {r['pair']}", "entity_id": f"{p}_decision",
