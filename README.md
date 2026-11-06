@@ -179,6 +179,7 @@ environment. Schedule `bot.py` daily and `bot.py --ha` every 15 minutes with cro
 | `take_profit_pct` | 15 | Sell the whole position at +15% from the entry price (`0` disables it) |
 | `max_drawdown_pct` / `halt_days` | 20 / 7 | Equity down 20% from the start → no new buys for a week (stops keep working) |
 | `intraday_stops` | `true` | Check stops on every refresh, not only once a day |
+| `exchange_stops` | `true` | Live mode: keep the stop as a stop-loss order on Kraken (needs Cancel & Close Orders) |
 
 Exposure limits only restrict **new** buys; an existing position above a limit is never sold because of it.
 
@@ -198,10 +199,19 @@ and no further than `stop_loss_pct`; without a level it uses 2 ATR. With an open
 only raise the stop, never lower it. Coins without a stop (e.g. bought outside the bot) get the first one
 the model gives. The fixed −8% stop from the entry price stays active as a backstop.
 
-These are not stop orders on the exchange. The container compares the public price with the levels every
-`stop_check_seconds` (15 s by default) and sells with a market order as soon as one is breached; with that
-check off they are only checked every `ha_refresh_minutes`. In a fast crash, or while the bot is not
-running, the sale still happens below the level.
+**In live mode the stop also rests on Kraken** as a stop-loss order (`exchange_stops`, on by default; not
+in validation mode). It covers the whole position at the higher of the model's stop and the fixed
+`stop_loss_pct` level, so the position is protected even when Home Assistant, the add-on or the internet
+is down. The bot moves the order when the stop or the position changes, cancels it before selling by
+itself, and logs a fill as a `stop` row ("STOP on the exchange"). Only orders it placed itself (marked
+with its own `userref`) are touched. It needs the **Cancel & Close Orders** permission on the API key.
+Take-profit stays with the bot.
+
+Besides that the container compares the public price with the levels every `stop_check_seconds` (15 s by
+default) and sells with a market order as soon as one is breached; with that check off they are only
+checked every `ha_refresh_minutes`. With a stop resting on Kraken this check is the backup: it sells only
+when the price is more than 1% below the order's level, i.e. the exchange did not sell. A stop-loss order
+also becomes a market sell once triggered, so in a fast crash the sale can still happen below the level.
 
 **After a sale** the EUR stays on the account. Buying back is decided by the next cycle (the extra one a
 few hours after the stop, or the daily one), within the limits above. The model sees the stop sales of the last 7 days and is told not to buy back without a new reason.
@@ -229,7 +239,8 @@ conclusions; the pairs are strongly correlated.
 ## Going live (after a few weeks of paper trading)
 
 1. Kraken → Settings → API → create a key with **Query Funds**, **Query Open Orders & Trades**,
-   **Query Closed Orders & Trades**, **Query Ledger Entries** and **Create & Modify Orders**.
+   **Query Closed Orders & Trades**, **Query Ledger Entries**, **Create & Modify Orders** and
+   **Cancel & Close Orders** (moving the stop order resting on Kraken).
    **Never Withdraw Funds.**
 2. Put the keys into the add-on options (or `.env`), set `"mode": "live"` in `config.json`, enable the
    `live` option (or `LIVE=true`). Keep `"live_validate_only": true` at first: Kraken validates the orders

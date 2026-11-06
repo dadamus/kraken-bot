@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.7.0
+- Live mode: the stop also rests on Kraken as a stop-loss order for the whole position, so it protects
+  the position even when Home Assistant, the add-on or the internet is down. The bot places it, moves it
+  when the stop or the position changes, cancels it before selling by itself and logs a fill as a stop
+  row. Only its own orders (own `userref`) are touched. **Give the API key the Cancel & Close Orders
+  permission.** Switch off with `"exchange_stops": false` in `risk`; not used in validation mode.
+- With a stop resting on Kraken the bot's own 15-second check is the backup: it sells only when the price
+  is more than 1% below the order's level. Take-profit stays with the bot.
+
 ## 2.6.0
 - Stops are settled like the model's calls: the price 1, 3 and 7 days after every automatic stop /
   take-profit sale (lower = the stop saved money). In `--report`, the cycle log, the performance entity

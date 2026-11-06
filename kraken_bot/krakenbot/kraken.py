@@ -41,7 +41,8 @@ def kraken_pairs(pairs):
     if data.get("error"):
         raise RuntimeError(f"Kraken: {data['error']}")
     info = {v["altname"]: {"key": k, "base": v["base"], "quote": v["quote"],
-                           "lot_decimals": int(v["lot_decimals"]), "ordermin": float(v["ordermin"])}
+                           "lot_decimals": int(v["lot_decimals"]), "pair_decimals": int(v["pair_decimals"]),
+                           "ordermin": float(v["ordermin"])}
             for k, v in data["result"].items() if v["altname"] in pairs}
     if set(pairs) - set(info):
         raise RuntimeError(t("unknown_pairs", pairs=sorted(set(pairs) - set(info))))
@@ -156,9 +157,10 @@ def sync_live(cfg, state, prices):
                 print(t("beyond_threshold", pair=pair))
         elif coin * prices[pair] >= r["min_trade_eur"]:
             print(t("no_entry_price", pair=pair))
-        old_stop = state["positions"].get(pair, {}).get("stop_price")  # Kraken knows nothing about our stop
+        old = state["positions"].get(pair, {})  # the balance knows nothing about our stop levels
         state["positions"][pair] = {"coin": coin, "entry_price": entry, "entry_source": source,
-                                    "stop_price": old_stop if coin >= min_coin else None}
+                                    "stop_price": old.get("stop_price") if coin >= min_coin else None,
+                                    "exchange_stop": old.get("exchange_stop")}  # reconciled by exchange_stops
     if not state.get("synced_at"):  # first live start: the reference point for return and drawdown
         state["start_eur"] = round(portfolio.equity_of(state, prices), 2)
     if not state.get("ledger_checked"):  # only flows after this moment move the reference point

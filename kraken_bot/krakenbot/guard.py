@@ -3,7 +3,7 @@ import copy
 import time
 from datetime import datetime
 
-from . import kraken, portfolio, risk
+from . import exchange_stops, kraken, portfolio, risk
 from .i18n import t
 
 
@@ -25,6 +25,7 @@ def guard(cfg, state, prices, live, pair_info=None):
             continue
         print(t("guard_trigger", pair=pair, why=order["why"], price=price))
         qty = 0.0
+        exchange_stops.cancel_for_sale(cfg, live, pos)
         if live and not kraken.live_execute(cfg, pair_info[pair], order, price):
             order = {"side": "error", "why": t("why_order_failed", why=order["why"])}
         else:

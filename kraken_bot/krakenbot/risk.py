@@ -1,7 +1,7 @@
 """Risk rules in code: they have the final word over the model."""
 from datetime import datetime, timedelta, timezone
 
-from . import portfolio
+from . import exchange_stops, portfolio
 from .i18n import t
 
 
@@ -44,8 +44,16 @@ def tighten_stop(cfg, pos, signal, price, atr=None):
 
 
 def protective_exit(cfg, pos, price):
-    """Stop-loss / take-profit: always active, regardless of the model and of a halt."""
+    """Stop-loss / take-profit: always active, regardless of the model and of a halt. With a stop order
+    resting on Kraken the bot's own stop is only the backup: it acts when the price is well below that
+    order's level, i.e. the exchange did not sell."""
     r = cfg["risk"]
+    resting = pos.get("exchange_stop")
+    if resting and pos["coin"] > 0 and price > resting["level"] * (1 - exchange_stops.GRACE_PCT / 100):
+        if r.get("take_profit_pct") and pos["entry_price"] and \
+                price >= pos["entry_price"] * (1 + r["take_profit_pct"] / 100):
+            return {"side": "sell", "coin": pos["coin"], "why": "TAKE-PROFIT"}
+        return None
     if pos["coin"] > 0 and pos.get("stop_price") and price <= pos["stop_price"]:
         return {"side": "sell", "coin": pos["coin"], "why": t("why_stop_model", level=pos["stop_price"])}
     if pos["coin"] > 0 and pos["entry_price"]:

@@ -18,7 +18,8 @@
     "take_profit_pct": 15,
     "max_drawdown_pct": 20,
     "halt_days": 7,
-    "intraday_stops": true
+    "intraday_stops": true,
+    "exchange_stops": true
   },
   "extra_cycles": {
     "enabled": true,

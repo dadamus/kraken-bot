@@ -14,7 +14,7 @@ import sys
 import time
 from datetime import datetime
 
-from . import (claude, config, costs, evaluation, forecast, guard, homeassistant, indicators, journal, kraken, macro,
+from . import (claude, config, costs, evaluation, exchange_stops, forecast, guard, homeassistant, indicators, journal, kraken, macro,
                market, offline, portfolio, risk, triggers)
 from .i18n import set_language, t
 
@@ -50,6 +50,7 @@ def refresh(cfg, state, live, mode):
     prices = {pair: market.fetch_price(pair) for pair in cfg["pairs"]}
     info = kraken.sync_live(cfg, state, prices) if live else None
     rows = guard.guard(cfg, state, prices, live, info)
+    rows += exchange_stops.sync(cfg, state, info, prices, live)
     if rows:
         journal.log_rows(rows)
     charts = state.setdefault("charts", {})
@@ -113,9 +114,11 @@ def daily_cycle(cfg, state, live, offline_mode, mode, trigger=None):
         try:
             time.sleep(2)  # give market orders a moment to settle
             for pair in pairs:  # stops set in this cycle only live in the working copy
-                state["positions"][pair]["stop_price"] = book["positions"][pair].get("stop_price")
+                for key in ("stop_price", "exchange_stop"):
+                    state["positions"][pair][key] = book["positions"][pair].get(key)
             kraken.sync_live(cfg, state, prices)
             book = state
+            rows += exchange_stops.sync(cfg, state, pair_info, prices, live)
         except Exception as e:
             print(t("balance_read_failed", err=e))
     equity = portfolio.equity_of(book, prices)
@@ -251,6 +254,8 @@ def execute_signals(cfg, state, book, markets, prices, signals, live, pair_info,
         print(f"             {sig['reasoning']}")
         qty = 0.0
         if order["side"] in ("buy", "sell"):
+            if order["side"] == "sell":
+                exchange_stops.cancel_for_sale(cfg, live, book["positions"][pair])
             if live and not kraken.live_execute(cfg, pair_info[pair], order, price):
                 order = {"side": "error", "why": t("why_order_failed", why=order["why"])}
             else:
