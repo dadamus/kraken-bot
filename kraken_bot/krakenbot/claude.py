@@ -19,6 +19,21 @@ def system_prompt():
     return SYSTEM_PROMPT.replace("{LANGUAGE}", language_name())
 
 
+def parse_watch(w):
+    """What would change the call: price levels that start an extra cycle and the condition in words."""
+    w = w if isinstance(w, dict) else {}
+
+    def level(key):
+        try:
+            v = float(w.get(key))
+        except (TypeError, ValueError):
+            return None
+        return v if v > 0 else None
+
+    return {"above": level("price_above"), "below": level("price_below"),
+            "condition": str(w.get("condition") or "").strip()[:300]}
+
+
 def parse_signal(d):
     action = d.get("action", "hold")
     if action not in ("buy", "sell", "hold"):
@@ -35,17 +50,22 @@ def parse_signal(d):
             "confidence": max(0.0, min(1.0, float(d.get("confidence", 0)))),
             "p_up_3d": p_up,
             "size_pct": max(0.0, min(100.0, float(d.get("size_pct", 0)))),
-            "reasoning": str(d.get("reasoning", ""))[:600]}
+            "reasoning": str(d.get("reasoning", ""))[:600],
+            "watch": parse_watch(d.get("watch"))}
 
 
 def decision_schema(pairs):
     num, nullable = {"type": "number"}, {"anyOf": [{"type": "number"}, {"type": "null"}]}
+    watch = {"type": "object", "additionalProperties": False,
+             "required": ["price_above", "price_below", "condition"],
+             "properties": {"price_above": nullable, "price_below": nullable, "condition": {"type": "string"}}}
     decision = {"type": "object", "additionalProperties": False,
-                "required": ["pair", "action", "confidence", "p_up_3d", "size_pct", "stop_price", "reasoning"],
+                "required": ["pair", "action", "confidence", "p_up_3d", "size_pct", "stop_price", "reasoning",
+                             "watch"],
                 "properties": {"pair": {"type": "string", "enum": list(pairs)},
                                "action": {"type": "string", "enum": ["buy", "sell", "hold"]},
                                "confidence": num, "p_up_3d": num, "size_pct": num,
-                               "stop_price": nullable, "reasoning": {"type": "string"}}}
+                               "stop_price": nullable, "reasoning": {"type": "string"}, "watch": watch}}
     return {"type": "object", "additionalProperties": False, "required": ["decisions", "summary"],
             "properties": {"decisions": {"type": "array", "items": decision},
                            "summary": {"type": "string"}}}
@@ -87,7 +107,7 @@ def ask_claude(cfg, markets, news, portfolio, context):
             signals[pair] = parse_signal(by_pair[pair])
         else:  # the model skipped the pair -> do nothing
             signals[pair] = {"action": "hold", "confidence": 0.0, "p_up_3d": None, "stop_price": None,
-                             "size_pct": 0.0, "reasoning": t("missing_assessment")}
+                             "size_pct": 0.0, "reasoning": t("missing_assessment"), "watch": parse_watch(None)}
     return signals, str(d.get("summary", ""))[:600]
 
 
@@ -107,6 +127,8 @@ def recent_decisions(pairs, prices, days=7):
                "price_change_since_pct": round((prices[pair] / float(r["price"]) - 1) * 100, 2)}
         if r["model_action"] == "stop":
             out["rule"] = r["rule"]  # e.g. "STOP (level 67900)" or "TAKE-PROFIT"
+        elif r.get("watch"):
+            out["watch"] = r["watch"]  # the condition the model was waiting for
         return out
 
     result = {}

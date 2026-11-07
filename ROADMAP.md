@@ -3,7 +3,7 @@
 Where the project stands, what comes next and - just as important - what has to be true before the next
 step. The bot trades real money, so every phase ends with a check, not with a feature list.
 
-Last updated: 2026-11-07 (version 2.9.0).
+Last updated: 2026-11-07 (version 2.10.0).
 
 ## Principles
 
@@ -16,13 +16,13 @@ Last updated: 2026-11-07 (version 2.9.0).
    result, not a failure of the project.
 4. **Small, reversible steps.** One change at a time, a switch to turn it off, tests for every rule.
 
-## Done (2.0 - 2.9)
+## Done (2.0 - 2.10)
 
 | Area | What |
 |---|---|
 | Core | Claude-assisted daily cycle for BTC, ETH, SOL; risk rules in code with the final word; paper, validation and live modes; Home Assistant add-on and standalone Docker; English and Polish |
 | Data for the model | Daily, weekly and hourly candles with indicators; news; funding and open interest; Fear & Greed; dominance and stablecoin share; options implied volatility; US markets (Nasdaq, S&P 500, VIX, yields, dollar); the week's US macro calendar; Coinbase premium; its own track record |
-| Reacting | Extra model cycles on events (a stop fired, a move of 1.5 ATR); stop checks every 15 s |
+| Reacting | Extra model cycles on events (a stop fired, a move of 1.5 ATR, a level from the model's own entry condition); stop checks every 15 s |
 | Protection | Model stop plus a fixed stop-loss; stop-loss orders resting on Kraken; trailing stop; drawdown halt; exposure limits; alerts to the phone when a cycle fails, refreshes fail or a stop order cannot be placed |
 | Measuring | Every call, forecast (Brier, calibration) and stop sale settled after 1/3/7 days; daily vs extra cycles; benchmarks with fees; model API cost per call and month; deposits and withdrawals kept out of the result |
 | Seeing | The add-on's own dashboard panel (ingress); YAML dashboards and entities for Home Assistant |
@@ -52,7 +52,7 @@ After roughly a month of live data. Questions, each with the place in the panel 
 | Does the bot beat buy and hold and the trend rule after fees? | Performance, the bot vs benchmarks | If not: consider simpler rules or a smaller role for the model |
 | Are the forecasts better than a coin flip? (Brier below 0.25, hit rate above 50%, calibration buckets) | Performance, forecasts | If not: lower the weight of `p_up_3d`, review the prompt |
 | Do stops save money or sell too early? | Performance, stop sales | Adjust `stop_loss_pct`, the 1 ATR minimum distance, `trailing_stop_atr` |
-| Do extra cycles make better calls than the daily one? | Performance, daily vs extra cycles | Tune or switch off `extra_cycles` |
+| Do extra cycles make better calls than the daily one? | Performance, daily vs extra cycles | Tune or switch off `extra_cycles` (or only `watch_levels`) |
 | Is the model cost reasonable against the capital and the result? | Model cost tile | Lower `effort`, fewer extra cycles, a cheaper model for extra cycles |
 | Is `min_confidence` 0.65 blocking good calls or letting bad ones through? | Decision log, calls by confidence | Adjust the threshold |
 

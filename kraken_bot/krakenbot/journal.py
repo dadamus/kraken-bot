@@ -5,7 +5,7 @@ from datetime import datetime
 from . import config
 
 LOG_FIELDS = ["date", "pair", "price", "model_action", "confidence", "p_up_3d", "size_pct", "executed",
-              "rule", "qty", "eur", "coin", "equity_eur", "reasoning", "cycle"]
+              "rule", "qty", "eur", "coin", "equity_eur", "reasoning", "cycle", "watch"]
 
 
 def read_log():

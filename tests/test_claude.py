@@ -96,14 +96,15 @@ def test_ask_claude_request_and_parsing(cfg, fake_claude):
     assert signals["XBTEUR"]["action"] == "buy" and signals["XBTEUR"]["stop_price"] == 67900
     assert signals["ETHEUR"]["action"] == "hold"  # pair names are case-insensitive
     assert signals["SOLEUR"] == {"action": "hold", "confidence": 0.0, "p_up_3d": None, "stop_price": None,
-                                 "size_pct": 0.0, "reasoning": "no model assessment for this pair"}
+                                 "size_pct": 0.0, "reasoning": "no model assessment for this pair",
+                                 "watch": {"above": None, "below": None, "condition": ""}}
 
     kw = fake_claude.last_kwargs
     assert kw["model"] == "claude-opus-5-5"
     assert kw["output_config"]["format"]["type"] == "json_schema"
     assert kw["output_config"]["effort"] == "high"
     assert kw["fallbacks"] == "default" and "server-side-fallback-2026-07-01" in kw["betas"]
-    assert 'Write "reasoning" and "summary" in English.' in kw["system"]
+    assert 'Write "reasoning", "watch.condition" and "summary" in English.' in kw["system"]
     user = json.loads(kw["messages"][0]["content"])
     assert user["buy_limits"]["stop_loss_pct"] == 8
 

@@ -38,9 +38,17 @@ the whole position if one is hit. This uses only Kraken's public price API, so i
 refreshes the Home Assistant entities.
 
 **Extra cycles.** The refresh asks the model between the daily cycles only when something happened:
-a stop / take-profit fired at least 3 hours ago (was it a real break or a wick?), or a pair moved at
-least 1.5 daily ATRs from the price of the last cycle. At most 3 extra cycles a day and at least 3 hours
-after any cycle; the model is told why it is being asked. See `extra_cycles` below.
+a stop / take-profit fired at least 3 hours ago (was it a real break or a wick?), the price crossed a
+level the model named in its last call, or a pair moved at least 1.5 daily ATRs from the price of the last
+cycle. At most 3 extra cycles a day and at least 3 hours after any cycle; the model is told why it is being
+asked. See `extra_cycles` below.
+
+**What the model is waiting for.** With every call the model also says what would change it (`watch`): a
+concrete condition in words ("buy if BTC holds above 68 500 for several hours", "two days of ETF inflows")
+and, where a price matters, a level above and / or below the current price. Crossing a level is not an
+order: it only starts an extra cycle in which the model checks with fresh data whether the confirmation
+really came. The condition is shown on the pair's card in the panel and kept in the decision log, and the
+model sees its earlier conditions in the next cycle.
 
 ## Install as a Home Assistant add-on
 
@@ -90,8 +98,9 @@ read-only: it can neither trade nor change settings.
 - status: mode, last sync, next cycle, extra cycles today, a trading halt,
 - equity and result since start, the bot versus buy and hold, share in crypto, the model's API cost,
 - per pair: price, position, result, the stop (🛡️ = the stop order rests on Kraken), the model's latest
-  call with its chance of a rise, a 30-day chart with the 3-day forecast, the bot's buys / sells / stops,
-  the entry and stop levels, and the price band outside which an extra cycle starts,
+  call with its chance of a rise and what it is waiting for (🎯), a 30-day chart with the 3-day forecast,
+  the bot's buys / sells / stops, the entry and stop levels, and the price band outside which an extra cycle
+  starts (🎯 = a level from the model's condition),
 - the latest summary, equity over time, the market (Fear & Greed, Nasdaq, S&P 500, VIX, yields, dollar,
   Coinbase premium, dominance, funding) and this week's US macro events,
 - performance (calls, forecasts, stop sales, daily vs extra cycles) and the decision log with filters.
@@ -210,6 +219,7 @@ Exposure limits only restrict **new** buys; an existing position above a limit i
 | `enabled` | `true` | Ask the model between the daily cycles when an event below happens |
 | `after_stop_hours` | 3 | Hours after a stop / take-profit sale before the extra cycle |
 | `move_atr` | 1.5 | Price move since the last cycle, in daily ATR14, that starts an extra cycle |
+| `watch_levels` | `true` | Start an extra cycle when the price crosses a level from the model's `watch` condition |
 | `min_gap_hours` | 3 | Minimum time since the last cycle of any kind |
 | `max_per_day` | 3 | Maximum extra cycles per day (each is one model call) |
 

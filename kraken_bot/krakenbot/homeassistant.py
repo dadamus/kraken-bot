@@ -70,7 +70,7 @@ def ha_publish(cfg, state, prices, mode, new_rows=None):
         keep = ("date", "pair", "price", "model_action", "confidence", "p_up_3d", "executed", "rule")
         ha_set(ha, f"{p}_decision", last_date or t("ha_no_decision"), t("ha_decision"), "mdi:robot",
                summary=state.get("last_summary", ""),
-               decisions=[{k: r.get(k) for k in keep + ("reasoning",)} for r in log if r["date"] == last_date],
+               decisions=[{k: r.get(k) for k in keep + ("reasoning", "watch")} for r in log if r["date"] == last_date],
                history=[{k: r.get(k) for k in keep} for r in log[-30:]])
 
         ev = state.get("evaluation")

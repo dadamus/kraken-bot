@@ -64,6 +64,9 @@ premium_line = "  Coinbase premium: now {now}%, 24h average {avg}%"
 extra_cycle = ">> extra cycle: {why}"
 trigger_stop = "{pair} {rule} at {at}"
 trigger_move = "{pair} moved {pct:+.2f}% since {since} ({a:g} -> {b:g}, {atr} ATR)"
+trigger_watch_above = "{pair} price {b:g} is above {level:g}, the level from the model's condition: {cond}"
+trigger_watch_below = "{pair} price {b:g} is below {level:g}, the level from the model's condition: {cond}"
+watch_line = "             waiting for: {cond} (extra cycle above {above} / below {below})"
 
 # ---- Claude
 no_anthropic_key = "ANTHROPIC_API_KEY is not set"

@@ -23,4 +23,5 @@ def fake_signal():
             "p_up_3d": round(random.uniform(0.35, 0.65), 2),
             "size_pct": random.choice([25, 50, 100]),
             "stop_price": None,
-            "reasoning": t("offline_reasoning")}
+            "reasoning": t("offline_reasoning"),
+            "watch": {"above": None, "below": None, "condition": ""}}

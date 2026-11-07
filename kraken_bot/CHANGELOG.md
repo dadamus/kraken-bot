@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.10.0
+- The model says what it is waiting for: with every call a concrete condition (`watch`, e.g. "buy if BTC
+  holds above 68 500 for several hours") and optional price levels above / below the current price.
+- Crossing such a level starts an extra cycle (within the usual limits: 3 h gap, 3 a day), in which the model
+  checks with fresh data whether the confirmation came; it is not an order by itself. Switch off with
+  `extra_cycles.watch_levels: false`.
+- The panel shows the condition on the pair's card (🎯), the model's levels in the extra-cycle band and on the
+  chart, and in the decision log. The log gets a `watch` column; the model sees its earlier conditions.
+
 ## 2.9.0
 - Alerts to the phone (`home_assistant.notify`) when the bot needs attention: a failed model cycle (daily or
   extra, with the error), refreshes failing three times in a row (and when they work again), or a stop order

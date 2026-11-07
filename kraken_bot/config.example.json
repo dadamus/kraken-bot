@@ -26,6 +26,7 @@
     "enabled": true,
     "after_stop_hours": 3,
     "move_atr": 1.5,
+    "watch_levels": true,
     "min_gap_hours": 3,
     "max_per_day": 3
   },

@@ -77,8 +77,15 @@ def thresholds(cfg, state, prices, now):
     for pair, ref in last["prices"].items():
         atr = (last.get("atr") or {}).get(pair)
         if atr and pair in prices:
-            out["pairs"][pair] = {"ref": ref, "low": ref - s["move_atr"] * atr, "high": ref + s["move_atr"] * atr,
-                                  "atr": atr, "price": prices[pair]}
+            row = {"ref": ref, "low": ref - s["move_atr"] * atr, "high": ref + s["move_atr"] * atr,
+                   "low_from": "atr", "high_from": "atr", "atr": atr, "price": prices[pair],
+                   "watch": (last.get("watch") or {}).get(pair)}
+            w = row["watch"] or {}
+            if s["watch_levels"] and w.get("below") and w["below"] > row["low"]:  # the closer level starts it
+                row["low"], row["low_from"] = w["below"], "watch"
+            if s["watch_levels"] and w.get("above") and w["above"] < row["high"]:
+                row["high"], row["high_from"] = w["above"], "watch"
+            out["pairs"][pair] = row
     return out
 
 
@@ -98,7 +105,7 @@ def build(cfg, state, log, prices, opts):
     equity = portfolio.equity_of(state, known) if len(known) == len(pairs) else None
     cache = state.get("macro_calendar_cache") or {}
     keep = ("date", "pair", "price", "model_action", "confidence", "p_up_3d", "size_pct", "executed", "rule",
-            "qty", "eur", "equity_eur", "reasoning", "cycle")
+            "qty", "eur", "equity_eur", "reasoning", "cycle", "watch")
     return {
         "now": now.strftime(triggers.FMT), "language": opts.get("language", "en"),
         "mode": "live" if opts.get("live") else "paper", "run_time": opts.get("run_time"), "pairs": pairs,

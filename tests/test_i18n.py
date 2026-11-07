@@ -58,5 +58,5 @@ def test_language_selection(monkeypatch):
 
 def test_system_prompt_asks_for_selected_language():
     i18n.set_language({"language": "pl"})
-    assert 'Write "reasoning" and "summary" in Polish.' in claude.system_prompt()
+    assert 'Write "reasoning", "watch.condition" and "summary" in Polish.' in claude.system_prompt()
     assert "{LANGUAGE}" not in claude.system_prompt()

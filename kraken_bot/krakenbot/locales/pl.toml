@@ -64,6 +64,9 @@ premium_line = "  premia Coinbase: teraz {now}%, średnia 24h {avg}%"
 extra_cycle = ">> dodatkowy cykl: {why}"
 trigger_stop = "{pair} {rule} o {at}"
 trigger_move = "{pair} zmiana {pct:+.2f}% od {since} ({a:g} -> {b:g}, {atr} ATR)"
+trigger_watch_above = "{pair} cena {b:g} powyżej {level:g}, poziomu z warunku modelu: {cond}"
+trigger_watch_below = "{pair} cena {b:g} poniżej {level:g}, poziomu z warunku modelu: {cond}"
+watch_line = "             czeka na: {cond} (dodatkowy cykl powyżej {above} / poniżej {below})"
 
 # ---- Claude
 no_anthropic_key = "Brak ANTHROPIC_API_KEY"

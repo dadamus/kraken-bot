@@ -143,7 +143,7 @@ def daily_cycle(cfg, state, live, offline_mode, mode, trigger=None):
         row["eur"], row["equity_eur"] = round(book["eur"], 2), round(equity, 2)
     state["last_summary"] = summary
     alerts.flush(cfg, state)
-    triggers.remember_cycle(state, markets, prices)
+    triggers.remember_cycle(state, markets, prices, signals=signals)
     journal.log_rows(rows)
     ev = market.optional("evaluation", evaluation.evaluation, cfg, book, journal.read_log(), candles, prices)
     if ev:
@@ -270,6 +270,11 @@ def execute_signals(cfg, state, book, markets, prices, signals, live, pair_info,
         print(t("decision_line", pair=pair, action=sig["action"], conf=sig["confidence"], size=sig["size_pct"],
                 p_up=p_up, side=order["side"], why=order["why"]))
         print(f"             {sig['reasoning']}")
+        watch = sig.get("watch") or {}
+        if watch.get("condition") or watch.get("above") or watch.get("below"):
+            level = lambda x: f"{x:g}" if x else "-"
+            print(t("watch_line", cond=watch.get("condition") or "-", above=level(watch.get("above")),
+                    below=level(watch.get("below"))))
         qty = 0.0
         if order["side"] in ("buy", "sell"):
             if order["side"] == "sell":
@@ -286,5 +291,5 @@ def execute_signals(cfg, state, book, markets, prices, signals, live, pair_info,
                      "p_up_3d": sig["p_up_3d"], "size_pct": sig["size_pct"], "executed": order["side"],
                      "rule": order["why"], "qty": round(qty, 8), "eur": 0,
                      "coin": round(book["positions"][pair]["coin"], 8), "equity_eur": 0,
-                     "reasoning": sig["reasoning"]})
+                     "reasoning": sig["reasoning"], "watch": watch.get("condition", "")})
     return rows

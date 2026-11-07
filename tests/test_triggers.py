@@ -89,7 +89,7 @@ def test_remember_cycle_and_cycle_info():
     markets = {pair: {"atr14": 1.5} for pair in PRICES}
     triggers.remember_cycle(state, markets, PRICES, NOW)
     assert state["last_cycle"] == {"date": "2026-11-05 20:00", "prices": PRICES,
-                                   "atr": {pair: 1.5 for pair in PRICES}}
+                                   "atr": {pair: 1.5 for pair in PRICES}, "watch": {}}
     assert triggers.cycle_info(None) == {"type": "scheduled_daily"}
     assert triggers.cycle_info({"kind": "move"}) == {"type": "extra", "trigger": {"kind": "move"}}
 
