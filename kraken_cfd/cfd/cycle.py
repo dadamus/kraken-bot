@@ -38,6 +38,8 @@ def fetch_prices(cfg, state):
     for pair, pos in state["positions"].items():  # a pair removed from config.json is still valued
         if pair not in prices:
             prices[pair] = market.optional(f"price {pair}", market.fetch_price, pair) or pos["last_price"]
+    if "EURUSD" not in prices and any(account.instrument(cfg, p)["quote"] == "USD" for p in prices):
+        prices["EURUSD"] = market.fetch_price("EURUSD")  # to value USD-quoted pairs in EUR
     return prices
 
 
@@ -67,7 +69,8 @@ def refresh(cfg, state, now=None):
     ha.publish(cfg, state, prices, [{"kind": "close", **tr} for tr in trades])
 
 
-def load_markets(pairs, offline_mode):
+def load_markets(pairs, offline_mode, crypto=None):
+    """Candles, prices and indicators per pair. `crypto`: the crypto pairs (vs_btc only makes sense for them)."""
     markets, prices, closed_all = {}, {}, {}
     for i, pair in enumerate(pairs):
         if offline_mode:
@@ -80,15 +83,17 @@ def load_markets(pairs, offline_mode):
             hours = market.optional(f"hourly {pair}", market.fetch_hourly, pair)
             if hours:
                 m["last_24_hours"] = indicators.hourly(hours, price)
-        print(f"  {pair}: {price:g} EUR, 1d {m['change_1d_pct']}%, 7d {m['change_7d_pct']}%,"
+        print(f"  {pair}: {price:g}, 1d {m['change_1d_pct']}%, 7d {m['change_7d_pct']}%,"
               f" vs SMA200 {m['pct_vs_sma200']}%, ATR {m['atr14_pct']}%")
-    for pair, rs in indicators.relative_strength(closed_all, prices).items():
+    crypto = pairs if crypto is None else crypto
+    for pair, rs in indicators.relative_strength({p: closed_all[p] for p in crypto}, prices).items():
         markets[pair]["vs_btc"] = rs
     return markets, prices, closed_all
 
 
 def load_context(pairs, state, closed_all):
-    """The same public market-wide sources the Kraken bot uses; a failing one is just left out."""
+    """The same public market-wide sources the Kraken bot uses; a failing one is just left out. `pairs`: the
+    crypto pairs (perpetual funding and options volatility exist only for them)."""
     return {"derivatives": market.optional("futures", market.fetch_derivatives, pairs, state),
             "fear_greed": market.optional("fear&greed", market.fetch_fear_greed),
             "market_overview": market.optional("coingecko", market.fetch_market_overview, state),
@@ -106,25 +111,34 @@ def account_view(cfg, state, prices, now):
         sign = 1 if pos["side"] == "long" else -1
         positions[pair] = {"side": pos["side"], "qty": pos["qty"], "entry": round(pos["entry"], 6),
                            "stop": pos["stop"], "take_profit": pos["take_profit"],
-                           "unrealized_eur": round(account.unrealized(cfg, pair, pos, price), 2),
+                           "unrealized_eur": round(account.unrealized(cfg, pair, pos, price, prices), 2),
                            "move_in_direction_pct": round((price / pos["entry_mid"] - 1) * 100 * sign, 2),
                            "days_open": round((now.timestamp() - pos["opened_ts"]) / 86400, 1),
-                           "swap_paid_eur": round(pos["swap_eur"], 2)}
+                           "swap_paid_eur": round(pos["swap_eur"], 2),
+                           "market_open_now": account.market_open(cfg, pair, now)}
     return {"balance_eur": round(state["balance"], 2), "equity_eur": round(account.equity(cfg, state, prices), 2),
             "margin_used_eur": round(account.margin_used(cfg, state, prices), 2),
             "margin_level_pct": round(level, 1) if level else None,
             "halted_until": state.get("halted_until"), "positions": positions}
 
 
-def trading_terms(cfg):
+def trading_terms(cfg, now=None):
     r = cfg["risk"]
-    spreads = {pair: account.spread_pct(cfg, pair) for pair in cfg["pairs"]}
+    now = now or datetime.now()
+    instruments = {}
+    for pair in cfg["pairs"]:
+        inst = account.instrument(cfg, pair)
+        instruments[pair] = {
+            "name": inst["name"], "asset_class": inst["asset_class"],
+            "price_in": inst["quote"] if inst["quote"] != "EUR" else "EUR",
+            "leverage": inst["leverage"], "margin_pct_of_notional": round(100 / inst["leverage"], 2),
+            "round_trip_spread_pct": inst["spread_pct"], "overnight_swap_pct_per_day": inst["swap_pct_per_day"],
+            "trading_hours": (f"closed {inst['weekend_close']} - {inst['weekend_open']} (local time)"
+                              if inst["weekend_close"] else "24/7"),
+            "market_open_now": account.market_open(cfg, pair, now)}
     # the model is not told the account is simulated: it should trade it like a real one
-    return {"instrument": "CFD on the coin's EUR price", "style": model.style(cfg),
-            "leverage": cfg["leverage"],
-            "margin_pct_of_notional": round(100 / float(cfg["leverage"]), 1), "allow_short": cfg.get("allow_short", True),
-            "round_trip_spread_pct": spreads, "overnight_swap_pct_per_day": cfg["swap_pct_per_day"],
-            "stop_out_margin_level_pct": cfg["stop_out_margin_level_pct"],
+    return {"account_currency": "EUR", "style": model.style(cfg), "allow_short": cfg.get("allow_short", True),
+            "instruments": instruments, "stop_out_margin_level_pct": cfg["stop_out_margin_level_pct"],
             **{k: r[k] for k in ("min_confidence", "risk_per_trade_pct", "min_stop_atr", "default_stop_atr",
                                  "max_stop_pct", "default_reward_risk")}}
 
@@ -152,13 +166,16 @@ def execute(cfg, state, prices, markets, signals, halt, now):
     Returns (calls.csv rows, closed trades, events for the notifications)."""
     pairs = cfg["pairs"]
     plans = {pair: risk.decide(cfg, state, pair, prices[pair], signals[pair], markets[pair].get("atr14"), halt)
+             if account.market_open(cfg, pair, now)
+             else [{"do": "none", "why": f"model: {signals[pair]['action']}, market closed (weekend)"}]
              for pair in pairs}
     done = {pair: [] for pair in pairs}
     trades, events = [], []
     for pair in pairs:
         for step in plans[pair]:
             if step["do"] == "close" and pair in state["positions"]:
-                tr = account.close_position(cfg, state, pair, prices[pair], f"model: {signals[pair]['action']}", now)
+                tr = account.close_position(cfg, state, pair, prices[pair], f"model: {signals[pair]['action']}", now,
+                                            prices)
                 trades.append(tr)
                 events.append({"kind": "close", **tr})
                 done[pair].append(f"close_{tr['side']}")
@@ -166,15 +183,16 @@ def execute(cfg, state, prices, markets, signals, halt, now):
         for step in plans[pair]:
             if step["do"] != "open":
                 continue
-            qty, why = risk.size(cfg, state, prices, prices[pair], step["dist"])
+            qty, why = risk.size(cfg, state, prices, pair, prices[pair], step["dist"])
             if not qty:
                 step["why"] += f" -> not opened: {why}"
                 continue
             pos = account.open_position(cfg, state, pair, step["side"], qty, prices[pair], step["stop"],
-                                        step["take_profit"], now)
+                                        step["take_profit"], now, prices)
             done[pair].append(f"open_{step['side']}")
             events.append({"kind": "open", "pair": pair, "side": step["side"], "qty": qty, "price": pos["entry"],
-                           "margin": qty * prices[pair] / float(cfg["leverage"]), "stop": pos["stop"],
+                           "margin": account.notional_eur(cfg, pair, qty, prices[pair], prices)
+                           / account.leverage(cfg, pair), "stop": pos["stop"],
                            "take_profit": pos["take_profit"], "reasoning": signals[pair]["reasoning"]})
     eq = round(account.equity(cfg, state, prices), 2)
     rows, now_s = [], now.strftime(FMT)
@@ -196,16 +214,19 @@ def daily_cycle(cfg, state, offline_mode=False, now=None, ask=None):
     now = now or datetime.now()
     pairs = cfg["pairs"]
     print(f"=== CFD paper {now:%Y-%m-%d %H:%M}: {', '.join(pairs)}{' (OFFLINE)' if offline_mode else ''} ===")
-    markets, prices, closed_all = load_markets(pairs, offline_mode)
+    crypto = [pair for pair in pairs if account.is_crypto(cfg, pair)]
+    markets, prices, closed_all = load_markets(pairs, offline_mode, crypto)
+    if not offline_mode and "EURUSD" not in prices and any(account.instrument(cfg, p)["quote"] == "USD" for p in pairs):
+        prices["EURUSD"] = market.fetch_price("EURUSD")  # to value USD-quoted pairs in EUR
     for pair in pairs:
         state["first_prices"].setdefault(pair, prices[pair])
     trades = protect(cfg, state, prices, now, fetch=None if offline_mode else guard.fetch_candles)
     news = [] if offline_mode else market.fetch_news(cfg["news_feeds"])
-    context = {} if offline_mode else load_context(pairs, state, closed_all)
+    context = {} if offline_mode else load_context(crypto, state, closed_all)
     calls_log, trades_log = journal.read_calls(), journal.read_trades() + trades
     recent_calls, recent_trades = recent(calls_log, trades_log, prices, now)
     payload = {"markets": markets, "account": account_view(cfg, state, prices, now),
-               "trading_terms": trading_terms(cfg), "news_last_24h": news,
+               "trading_terms": trading_terms(cfg, now), "news_last_24h": news,
                "own_recent_calls": recent_calls, "own_recent_trades": recent_trades,
                "own_track_record": (state.get("evaluation") or {}).get("calls"), **context}
 

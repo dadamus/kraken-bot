@@ -1,7 +1,7 @@
 # Kraken CFD paper
 
-**Paper only.** An experiment next to the Kraken bot: once a day Claude calls **long / short / flat** for a
-few crypto pairs, and a *simulated* CFD account executes the calls with leverage, spread and an overnight
+**Paper only.** An experiment next to the Kraken bot: once a day Claude calls **long / short / flat** for
+bitcoin, gold and EUR/USD (one instrument per asset class), and a *simulated* CFD account executes the calls with leverage, spread and an overnight
 swap. No broker, no orders, no exchange keys - only the Anthropic key. The question it answers: would the
 model's calls, the short side included, be worth anything after the costs a CFD broker charges?
 
@@ -14,7 +14,7 @@ It reads only public market data (the same sources the Kraken bot uses).
    minutes after the Kraken bot so the two do not hit the same public APIs at once).
 2. Start the add-on, enable **Start on boot** and **Watchdog**.
 3. On the first start `config.json` appears in `/addon_configs/<id>_kraken_cfd/` (1000 virtual EUR,
-   leverage 2). Edit it to change pairs, costs and rules; changes apply on the next run.
+   bitcoin, gold, EUR/USD). Edit it to change pairs, costs and rules; changes apply on the next run.
 4. **CFD paper** in the sidebar: the account, open positions, the model's calls, closed trades and the
    track record. Read-only.
 
@@ -48,8 +48,8 @@ scored). The rules in code are set separately; an aggressive preset to go with i
          "max_margin_pct": 100, "default_reward_risk": 3, "max_drawdown_pct": 50, "halt_days": 3}
 ```
 
-With three correlated positions at 3 % risk each, one bad day can cost about 9 % of equity, and full margin
-use brings the 50 % stop-out within reach of a sharp move. That is the point of the experiment, not a bug.
+With three positions at 3 % risk each, one bad day can cost about 9 % of equity (more when they are one
+bet on the dollar), and full margin use brings the 50 % stop-out within reach of a sharp move. That is the point of the experiment, not a bug.
 
 A call for the other direction closes the open position first; with enough confidence it then opens the
 new one. `hold` or the same direction may move the stop closer, never further.
@@ -58,25 +58,38 @@ new one. `hold` or the same direction may move the stop closer, never further.
 since the last check, as a broker's resting orders would fire (a wick counts; stop and take-profit in one
 candle = the stop; a gap fills at the candle's open). Then the overnight swap and the margin stop-out.
 
-## Costs (check them against your broker)
+## Instruments and costs (check them against your broker)
 
-| Setting | Default | Meaning |
-|---|---|---|
-| `leverage` | 2 | margin = notional / leverage (2:1 is the EU retail limit for crypto CFDs) |
-| `spread_pct` | BTC 0.3, ETH 0.3, SOL 0.5, other 1.0 | the whole spread in % of the price; half is paid on entry, half on exit |
-| `swap_pct_per_day` | long 0.097222, short 0.027778 | overnight financing in % of the notional per night held |
-| `stop_out_margin_level_pct` | 50 | positions are closed (worst first) when equity falls below this % of the margin |
+Three instruments from different asset classes, so the calls are more independent than three coins that move
+together. Prices come from Kraken: bitcoin `XBTEUR`, gold as `PAXGEUR` (a token backed by 1 troy ounce, in
+EUR; thin trading on Kraken, so an odd minute wick can touch a stop) and `EURUSD`.
 
-The defaults come from XTB's instrument specification table (Poland, November 2026): the upper end of
-the "target spread" range (BTC and ETH 0.1-0.3 %, SOL 0.25-0.5 %; in volatile markets it can be wider) and
-the crypto CFD swap of -0.097222 % a day for a long and -0.027778 % for a short. Shorts are cheaper to hold
-than longs. Brokers change these; check the table (xtb.com -> Specification -> Crypto) now and then and
-update `config.json`.
+| Instrument | Leverage | Spread (round trip) | Swap long / short a day | Hours (local) |
+|---|---|---|---|---|
+| `XBTEUR` | 1:2 | 0.3 % | 0.097222 % / 0.027778 % | 24/7 |
+| `PAXGEUR` (gold) | 1:20 | 0.03 % | 0.034556 % / 0.012667 % | closed Fri 23:00 - Mon 00:00 |
+| `EURUSD` | 1:30 | 0.015 % | 0.008333 % / -0.000003 % (a tiny credit) | closed Fri 22:00 - Sun 23:00 |
+
+The values come from XTB's instrument specification table (Poland, November 2026): crypto takes the upper
+end of the "target spread" (BTC 0.1-0.3 %), gold and EUR/USD about 1.5x the typical spread (0.75 USD on
+gold, 0.00012 on EUR/USD). Leverage is the EU retail limit. Brokers change these; check the table
+(xtb.com -> Specification) now and then.
+
+In `config.json` each instrument has an entry in `instruments`: `name`, `asset_class` (`crypto` gets the
+crypto-only context and `vs_btc`), `quote` (`EUR` or `USD`; USD prices are converted with EUR/USD),
+`leverage`, `spread_pct`, `swap_pct_per_day` and, for markets with a weekend break, `weekend_close` /
+`weekend_open` (e.g. `"fri 22:00"`). Anything missing falls back to the top-level `leverage`, `spread_pct`
+and `swap_pct_per_day`. While a market is closed no order is placed and no stop fires; a stop beyond the
+first price after the reopen fills at that price (a gap). The overnight swap is charged per calendar day,
+which over a week equals the broker's triple Wednesday or Friday charge.
+
+`stop_out_margin_level_pct` (50): positions are closed (worst first, only where the market is open) when
+equity falls below this % of the margin.
 
 ## Measuring
 
-The panel and `sensor.kraken_cfd_performance` show: the return against holding the same coins (equal
-split, no leverage, no costs - a generous benchmark), trades split into long and short (count, win rate,
+The panel and `sensor.kraken_cfd_performance` show: the return against holding the same instruments
+(equal split, no leverage, no costs - a generous benchmark; EUR/USD counts as holding EUR), trades split into long and short (count, win rate,
 net result after costs, average R), every call settled 3 days later (the move in the call's direction, the
 hit rate per direction) and the `p_up_3d` Brier score (0.25 = a coin flip). Command line inside the
 container: `python cfd_bot.py --report`.

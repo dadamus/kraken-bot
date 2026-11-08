@@ -35,17 +35,20 @@ def levels(cfg, side, price, atr, model_stop=None, model_tp=None):
     return sig(price - sign * dist), sig(tp), dist
 
 
-def size(cfg, state, prices, price, dist):
-    """Quantity in coins, or (0, reason)."""
+def size(cfg, state, prices, pair, price, dist):
+    """Quantity in units of the instrument (coins, ounces, euros), or (0, reason). `dist` is in the pair's
+    quote currency; risk and margin are in EUR."""
     r = cfg["risk"]
-    lev = float(cfg["leverage"])
+    lev = account.leverage(cfg, pair)
+    fx = account.eur_per_quote(cfg, pair, price, prices)
     eq = account.equity(cfg, state, prices)
-    qty = eq * r["risk_per_trade_pct"] / 100 / dist
+    qty = eq * r["risk_per_trade_pct"] / 100 / (dist * fx)
     room = min(eq * r["max_margin_per_trade_pct"] / 100, eq * r["max_margin_pct"] / 100
                - account.margin_used(cfg, state, prices))
-    qty = min(qty, max(room, 0) * lev / price)
-    if qty * price < r["min_trade_eur"]:
-        return 0.0, f"size {qty * price:.0f} EUR below min_trade_eur (margin room {max(room, 0):.0f} EUR)"
+    qty = min(qty, max(room, 0) * lev / (price * fx))
+    notional = qty * price * fx
+    if notional < r["min_trade_eur"]:
+        return 0.0, f"size {notional:.0f} EUR below min_trade_eur (margin room {max(room, 0):.0f} EUR)"
     return qty, None
 
 

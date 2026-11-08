@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.0
+- Bitcoin, gold and EUR/USD instead of three coins: one instrument per asset class, so the calls are more
+  independent. Gold comes from Kraken's `PAXGEUR`, EUR/USD from `EURUSD`.
+- Per-instrument settings in `config.json` `instruments`: leverage (crypto 1:2, gold 1:20, EUR/USD 1:30),
+  spread and swap from XTB's table, the quote currency (USD prices are converted to EUR) and weekend hours.
+  While a market is closed nothing is traded and no stop fires; a gap on the reopen fills at the reopen price.
+- The prompt covers all three asset classes: which context applies to crypto only, what moves gold and
+  EUR/USD, judging moves against each instrument's own ATR. The model sees every instrument's terms and
+  whether its market is open.
+- The holding benchmark counts EUR/USD as holding EUR.
+- An existing `config.json` keeps its pairs; add the `instruments` block from `config.example.json` to switch.
+
 ## 0.1.4
 - The model is no longer told the account is a simulation: the prompt and `trading_terms` describe it as a
   trading account. The add-on itself stays paper only.

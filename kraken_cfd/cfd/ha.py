@@ -52,7 +52,7 @@ def publish(cfg, state, prices, events=(), calls=()):
         for pair in cfg["pairs"]:
             pos = state["positions"].get(pair)
             if pos:
-                pnl = account.unrealized(cfg, pair, pos, account.price_of(prices, pair, pos))
+                pnl = account.unrealized(cfg, pair, pos, account.price_of(prices, pair, pos), prices)
                 kha.ha_set(ha, f"{ENTITY}_{pair.lower()}", pos["side"], f"CFD paper {pair}", "mdi:swap-vertical",
                            qty=pos["qty"], entry=pos["entry"], stop=pos["stop"], take_profit=pos["take_profit"],
                            price=prices.get(pair), unrealized_eur=round(pnl, 2), opened=pos["opened"],

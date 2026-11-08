@@ -8,7 +8,7 @@ from cfd import account, cycle, journal, panel
 
 
 def fake_markets(prices):
-    def load(pairs, offline_mode):
+    def load(pairs, offline_mode, crypto=None):
         markets = {p: {"atr14": prices[p] * 0.03, "price_now": prices[p]} for p in pairs}
         candles = {p: [] for p in pairs}
         return markets, dict(prices), candles
@@ -32,7 +32,7 @@ def test_daily_cycle_opens_closes_and_logs(ccfg, cstate, monkeypatch, no_data):
 
     cycle.daily_cycle(ccfg, cstate, now=NOW, ask=ask)
     assert {p: v["side"] for p, v in cstate["positions"].items()} == {"XBTEUR": "short", "SOLEUR": "long"}
-    assert seen["trading_terms"]["leverage"] == 2 and seen["news_last_24h"] == ["headline"]
+    assert seen["trading_terms"]["instruments"]["XBTEUR"]["leverage"] == 2 and seen["news_last_24h"] == ["headline"]
     assert seen["fear_greed"] == {"today": 50}
     calls = journal.read_calls()
     assert [r["executed"] for r in calls] == ["open_short", "none", "open_long"]

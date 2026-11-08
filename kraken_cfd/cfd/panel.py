@@ -89,7 +89,7 @@ def render(cfg, state, calls, trades, opts):
         rows.append([td(esc(pair)), td(esc(pos["side"]), pos["side"]), td(f"{pos['qty']:.6g}"),
                      td(f"{pos['entry']:,.6g}"), td(f"{price:,.6g}"), td(f"{pos['stop']:,.6g}"),
                      td(f"{pos['take_profit']:,.6g}"),
-                     td(signed(account.unrealized(cfg, pair, pos, price), " EUR")),
+                     td(signed(account.unrealized(cfg, pair, pos, price, prices), " EUR")),
                      td(f"{pos['swap_eur']:.2f}"), td(esc(pos["opened"]))])
     out.append(f"<h2>{esc(t('positions'))}</h2>")
     out.append(table([t("pair"), t("side"), t("qty"), t("entry"), t("price"), t("stop"), t("take_profit"),

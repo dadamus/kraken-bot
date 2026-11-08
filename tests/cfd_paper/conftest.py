@@ -19,6 +19,7 @@ def cfd_files(tmp_path, monkeypatch):
 def ccfg():
     cfg = settings.defaults()
     cfg["home_assistant"]["enabled"] = False
+    cfg["pairs"] = ["XBTEUR", "ETHEUR", "SOLEUR"]  # crypto only; gold and EUR/USD have their own tests
     cfg["spread_pct"] = {"XBTEUR": 0.2, "ETHEUR": 0.2, "SOLEUR": 0.2, "default": 0.2}
     return cfg
 

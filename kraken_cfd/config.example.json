@@ -1,6 +1,6 @@
 {
   "language": "en",
-  "pairs": ["XBTEUR", "ETHEUR", "SOLEUR"],
+  "pairs": ["XBTEUR", "PAXGEUR", "EURUSD"],
   "model": "claude-opus-5-5",
   "effort": "high",
   "start_eur": 1000,
@@ -9,6 +9,15 @@
   "leverage": 2,
   "spread_pct": {"XBTEUR": 0.3, "ETHEUR": 0.3, "SOLEUR": 0.5, "default": 1.0},
   "swap_pct_per_day": {"long": 0.097222, "short": 0.027778},
+  "instruments": {
+    "XBTEUR": {"name": "Bitcoin", "asset_class": "crypto"},
+    "PAXGEUR": {"name": "Gold (PAXG, 1 troy ounce)", "asset_class": "gold", "leverage": 20, "spread_pct": 0.03,
+                "swap_pct_per_day": {"long": 0.034556, "short": 0.012667},
+                "weekend_close": "fri 23:00", "weekend_open": "mon 00:00"},
+    "EURUSD": {"name": "EUR/USD", "asset_class": "currency", "quote": "USD", "leverage": 30, "spread_pct": 0.015,
+               "swap_pct_per_day": {"long": 0.008333, "short": -0.000003},
+               "weekend_close": "fri 22:00", "weekend_open": "sun 23:00"}
+  },
   "stop_out_margin_level_pct": 50,
   "risk": {
     "min_confidence": 0.65,

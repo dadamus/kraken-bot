@@ -33,19 +33,19 @@ def test_take_profit_closer_than_the_stop_is_replaced(ccfg):
 # --- position size ------------------------------------------------------------------------------------
 
 def test_size_risks_the_configured_share_of_equity(ccfg, cstate):
-    qty, why = risk.size(ccfg, cstate, PRICES, 100.0, 5.0)
+    qty, why = risk.size(ccfg, cstate, PRICES, "SOLEUR", 100.0, 5.0)
     assert why is None
     assert qty == pytest.approx(3.0)  # 1.5 % of 1000 EUR / 5 EUR distance
 
 
 def test_size_is_capped_by_the_margin_per_trade(ccfg, cstate):
-    qty, _ = risk.size(ccfg, cstate, PRICES, 100.0, 0.5)  # 30 coins by risk, 3000 EUR notional
+    qty, _ = risk.size(ccfg, cstate, PRICES, "SOLEUR", 100.0, 0.5)  # 30 coins by risk, 3000 EUR notional
     assert qty * 100 == pytest.approx(500)  # 25 % of equity as margin x leverage 2
 
 
 def test_size_respects_the_total_margin_and_the_minimum(ccfg, cstate):
     account.open_position(ccfg, cstate, "XBTEUR", "long", 0.024, 50000, 48000, 54000, NOW)  # 600 EUR margin
-    qty, why = risk.size(ccfg, cstate, PRICES, 100.0, 5.0)
+    qty, why = risk.size(ccfg, cstate, PRICES, "SOLEUR", 100.0, 5.0)
     assert qty == 0 and "min_trade_eur" in why
 
 

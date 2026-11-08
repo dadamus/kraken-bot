@@ -76,11 +76,14 @@ def settle_calls(calls, closed_by_pair):
 
 
 def benchmarks(cfg, state, prices):
-    """Holding the pairs in equal parts since the start, unleveraged and without costs (a generous benchmark)."""
+    """Holding the pairs in equal parts since the start, unleveraged and without costs (a generous benchmark);
+    a pair priced in another currency counts as EUR cash."""
     first = {p: v for p, v in (state.get("first_prices") or {}).items() if p in prices and v}
     if not first:
         return None
-    growth = sum(prices[p] / first[p] for p in first) / len(first)
+    # holding a currency pair from a EUR account means holding EUR: no change
+    growth = sum(prices[p] / first[p] if account.instrument(cfg, p)["quote"] == "EUR" else 1.0
+                 for p in first) / len(first)
     eq = account.equity(cfg, state, prices)
     hold_eur = state["start_eur"] * growth
     return {"since": state.get("started"), "hold_return_pct": round((growth - 1) * 100, 2),

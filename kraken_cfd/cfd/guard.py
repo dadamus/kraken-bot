@@ -67,9 +67,13 @@ def check(cfg, state, prices, now=None, fetch=fetch_candles):
             p = prices[pair]
             candles.append({"t": int(now.timestamp()), "o": p, "h": p, "l": p, "c": p})
         for candle in candles:
+            # Kraken quotes gold and currencies all weekend, the broker does not: no stop fires then, and the
+            # first candle after the reopen fills a stop beyond its open at that open (a gap)
+            if not account.market_open(cfg, pair, datetime.fromtimestamp(candle["t"])):
+                continue
             found = hit(pos, candle)
             if found:
                 reason, level = found
-                rows.append(account.close_position(cfg, state, pair, level, reason, now))
+                rows.append(account.close_position(cfg, state, pair, level, reason, now, prices))
                 break
     return rows
