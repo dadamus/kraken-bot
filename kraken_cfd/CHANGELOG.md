@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4
+- The model is no longer told the account is a simulation: the prompt and `trading_terms` describe it as a
+  trading account. The add-on itself stays paper only.
+
 ## 0.1.3
 - `style` in `config.json`: `cautious` (default, as before) or `aggressive` - the model looks for a trade in
   every pair every day, in either direction, with tight stops and larger targets. The model also sees the

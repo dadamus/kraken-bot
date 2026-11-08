@@ -19,7 +19,7 @@ last_usage = None  # token counts of the latest call, read by the cycle for the 
 STYLES = {
     "cautious": 'Be skeptical. Most days are noise; "flat" and "hold" are normal answers. Prefer no trade over a '
                 "weak one.",
-    "aggressive": "Trade actively: this run tests an aggressive style on purpose. Look for a tradeable setup in every "
+    "aggressive": "Trade actively: this account runs an aggressive style. Look for a tradeable setup in every "
                   "pair every day, in either direction - momentum and breakouts, failed breakouts, mean reversion "
                   "from stretched levels, funding or sentiment extremes. A position with a modest edge is preferred "
                   'over sitting out; use "flat" only when you see no edge at all or the costs would eat it. Being '

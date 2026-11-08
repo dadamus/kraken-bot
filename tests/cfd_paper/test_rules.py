@@ -202,3 +202,11 @@ def test_style_changes_the_prompt_and_unknown_falls_back_to_cautious(ccfg):
     assert "Prefer no trade" not in model.system_prompt(ccfg)
     ccfg["style"] = "yolo"
     assert model.style(ccfg) == "cautious"
+
+
+def test_the_model_is_not_told_the_account_is_simulated(ccfg):
+    from cfd import cycle
+    for style in ("cautious", "aggressive"):
+        ccfg["style"] = style
+        text = (model.system_prompt(ccfg) + str(cycle.trading_terms(ccfg))).lower()
+        assert not any(word in text for word in ("simulat", "paper", "experiment", "not real money"))
