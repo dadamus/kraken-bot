@@ -364,7 +364,7 @@ add-on, also add the code to `language: list(en|pl)` in `config.yaml` and a file
 | `dashboards/` | Home Assistant dashboards (English, Polish) |
 | `docker-compose.yml`, `.env.example` | Standalone Docker |
 | `repository.yaml` | Makes this repository installable from the Home Assistant add-on store |
-| `kraken_cfd/` | The CFD paper add-on (module map in `cfd/__init__.py`); uses `krakenbot` for market data |
+| `kraken_cfd/` | The CFD paper add-on (module map in `cfd/__init__.py`); `kraken_cfd/krakenbot/` is a copy of the bot's package - after changing `kraken_bot/krakenbot` run `python scripts/sync_krakenbot.py` (a test fails until you do) |
 | `tests/` | pytest suite (`tests/cfd_paper/` for the CFD paper add-on) |
 | `SECURITY.md` | How to report a vulnerability |
 

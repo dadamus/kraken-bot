@@ -16,8 +16,8 @@ Modules, roughly in the order a cycle uses them:
   cycle      command line, the daily cycle and the refresh
 
 Market data, indicators, cost tracking and the Home Assistant client come from the Kraken bot's package
-(krakenbot): in the repository from ../kraken_bot, in the image from the repository at a fixed commit
-(see the Dockerfile).
+(krakenbot). The add-on folder carries a copy of it (kraken_cfd/krakenbot, kept identical by
+scripts/sync_krakenbot.py and a test), because Home Assistant builds each add-on from its own folder only.
 """
 import sys
 from pathlib import Path

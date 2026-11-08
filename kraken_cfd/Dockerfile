@@ -4,14 +4,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends tzdata \
 WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
-# Market data, indicators, cost tracking and the Home Assistant client are shared with the Kraken bot add-on.
-# Home Assistant builds each add-on from its own folder only, so the package is taken from the repository at
-# a fixed commit (bump it to pick up changes in kraken_bot/krakenbot).
-ARG KRAKENBOT_REF=0fa1580aeb9deb04eba0bc100f3a78b832caf8ad
-ADD https://github.com/dadamus/kraken-bot/archive/${KRAKENBOT_REF}.tar.gz /tmp/kraken-bot.tar.gz
-RUN tar -xzf /tmp/kraken-bot.tar.gz -C /tmp \
-    && mv /tmp/kraken-bot-${KRAKENBOT_REF}/kraken_bot/krakenbot ./krakenbot \
-    && rm -rf /tmp/kraken-bot.tar.gz /tmp/kraken-bot-${KRAKENBOT_REF}
+# krakenbot is a copy of kraken_bot/krakenbot (market data, indicators, costs, Home Assistant client):
+# Home Assistant builds each add-on from its own folder only. Keep it in sync with scripts/sync_krakenbot.py.
+COPY krakenbot ./krakenbot
 COPY cfd_bot.py addon.py config.example.json ./
 COPY cfd ./cfd
 ENV CFD_DATA_DIR=/config
