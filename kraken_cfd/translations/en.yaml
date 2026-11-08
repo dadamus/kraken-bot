@@ -1,0 +1,13 @@
+configuration:
+  anthropic_api_key:
+    name: Anthropic API key
+    description: Key from console.anthropic.com. Used once a day for the long / short / flat calls.
+  language:
+    name: Language
+    description: Language of the panel, notifications and the model's reasoning.
+  run_time:
+    name: Daily cycle time
+    description: Time (HH:MM, local) of the daily cycle. Keep it a few minutes away from the Kraken bot's cycle.
+  refresh_minutes:
+    name: Refresh interval (minutes)
+    description: How often stops, take-profits, the overnight swap and the margin stop-out are checked. No model calls.

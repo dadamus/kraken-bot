@@ -13,3 +13,6 @@ __pycache__/
 .pytest_cache/
 .venv/
 .claude/
+
+# CFD paper add-on data
+data_cfd/

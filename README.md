@@ -309,6 +309,15 @@ in `entry_prices`. If that price is already more than `stop_loss_pct` above the 
 
 Taxes: selling crypto is usually a taxable event. Keep your Kraken trade history.
 
+## Experiment: CFD paper add-on (long and short)
+
+The same repository holds a second, **paper-only** add-on, **Kraken CFD paper** (`kraken_cfd/`). It asks the
+model once a day for **long / short / flat** on the same data and runs the calls on a *simulated* CFD
+account with leverage, spread, overnight swap and a margin stop-out. It never sends an order anywhere and
+does not touch the Kraken bot. Its purpose is to measure whether the short side and leverage would add
+anything after costs. Install it from the same add-on store entry; details in
+[`kraken_cfd/DOCS.md`](kraken_cfd/DOCS.md).
+
 ## Development and tests
 
 ```bash
@@ -355,7 +364,8 @@ add-on, also add the code to `language: list(en|pl)` in `config.yaml` and a file
 | `dashboards/` | Home Assistant dashboards (English, Polish) |
 | `docker-compose.yml`, `.env.example` | Standalone Docker |
 | `repository.yaml` | Makes this repository installable from the Home Assistant add-on store |
-| `tests/` | pytest suite |
+| `kraken_cfd/` | The CFD paper add-on (module map in `cfd/__init__.py`); uses `krakenbot` for market data |
+| `tests/` | pytest suite (`tests/cfd_paper/` for the CFD paper add-on) |
 | `SECURITY.md` | How to report a vulnerability |
 
 Data files (never committed): `config.json`, `state.json` / `state_live.json` (portfolio: free EUR and the

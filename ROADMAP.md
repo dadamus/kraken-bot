@@ -79,7 +79,9 @@ Not committed - each one is picked only if the data points to it.
 
 ## Not planned
 
-- Leverage, futures, margin or short selling.
+- Leverage, futures, margin or short selling in this bot. The question is studied separately and on paper
+  only by the CFD paper add-on (`kraken_cfd/`), which never sends orders; its results are read at the same
+  evaluation, not acted on.
 - Withdrawals or any other money movement by the bot (the API key never gets those permissions).
 - High-frequency trading or reacting within seconds - the model's horizon is 1-3 days.
 - More data sources for their own sake: the model already sees a lot, and more input mostly adds noise.

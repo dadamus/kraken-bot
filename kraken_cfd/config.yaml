@@ -1,0 +1,29 @@
+# Home Assistant add-on definition. Paper only: it never sends an order anywhere.
+name: Kraken CFD paper
+version: "0.1.0"
+slug: kraken_cfd
+description: "Paper-only experiment: Claude calls long / short / flat, a simulated CFD account with leverage, spread and swap executes them"
+url: https://github.com/dadamus/kraken-bot
+arch:
+  - aarch64
+  - amd64
+init: false
+startup: application
+boot: auto
+homeassistant_api: true
+ingress: true
+ingress_port: 8098
+panel_icon: mdi:swap-vertical-bold
+panel_title: CFD paper
+map:
+  - addon_config:rw
+options:
+  anthropic_api_key: ""
+  language: en
+  run_time: "08:20"
+  refresh_minutes: 5
+schema:
+  anthropic_api_key: password
+  language: list(en|pl)
+  run_time: match(^([01]\d|2[0-3]):[0-5]\d$)
+  refresh_minutes: int(1,60)

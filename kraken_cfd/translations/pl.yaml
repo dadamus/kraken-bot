@@ -1,0 +1,13 @@
+configuration:
+  anthropic_api_key:
+    name: Klucz API Anthropic
+    description: Klucz z console.anthropic.com. Używany raz dziennie do decyzji long / short / flat.
+  language:
+    name: Język
+    description: Język panelu, powiadomień i uzasadnień modelu.
+  run_time:
+    name: Godzina cyklu dziennego
+    description: Godzina (HH:MM, lokalna) cyklu dziennego. Ustaw kilka minut od cyklu bota Kraken.
+  refresh_minutes:
+    name: Odświeżanie (minuty)
+    description: Jak często sprawdzane są stopy, take-profity, swap i stop-out depozytu. Bez zapytań do modelu.

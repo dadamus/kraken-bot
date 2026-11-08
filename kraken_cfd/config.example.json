@@ -1,0 +1,36 @@
+{
+  "language": "en",
+  "pairs": ["XBTEUR", "ETHEUR", "SOLEUR"],
+  "model": "claude-opus-5-5",
+  "effort": "high",
+  "start_eur": 1000,
+  "allow_short": true,
+  "leverage": 2,
+  "spread_pct": {"XBTEUR": 0.3, "ETHEUR": 0.4, "SOLEUR": 0.8, "default": 0.8},
+  "swap_pct_per_day": {"long": 0.06, "short": 0.06},
+  "stop_out_margin_level_pct": 50,
+  "risk": {
+    "min_confidence": 0.65,
+    "risk_per_trade_pct": 1.5,
+    "max_margin_per_trade_pct": 25,
+    "max_margin_pct": 60,
+    "min_trade_eur": 20,
+    "min_stop_atr": 1,
+    "default_stop_atr": 2,
+    "max_stop_pct": 10,
+    "default_reward_risk": 2,
+    "max_drawdown_pct": 25,
+    "halt_days": 7
+  },
+  "news_feeds": [
+    "https://www.coindesk.com/arc/outboundfeeds/rss/",
+    "https://cointelegraph.com/rss",
+    "https://decrypt.co/feed"
+  ],
+  "home_assistant": {
+    "enabled": true,
+    "url": "http://homeassistant.local:8123",
+    "notify": "",
+    "notify_trades": true
+  }
+}
