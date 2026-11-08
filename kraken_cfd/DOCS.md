@@ -49,12 +49,15 @@ candle = the stop; a gap fills at the candle's open). Then the overnight swap an
 | Setting | Default | Meaning |
 |---|---|---|
 | `leverage` | 2 | margin = notional / leverage (2:1 is the EU retail limit for crypto CFDs) |
-| `spread_pct` | BTC 0.3, ETH 0.4, SOL 0.8 | the whole spread in % of the price; half is paid on entry, half on exit |
-| `swap_pct_per_day` | long 0.06, short 0.06 | overnight financing in % of the notional per night held |
+| `spread_pct` | BTC 0.3, ETH 0.3, SOL 0.5, other 1.0 | the whole spread in % of the price; half is paid on entry, half on exit |
+| `swap_pct_per_day` | long 0.097222, short 0.027778 | overnight financing in % of the notional per night held |
 | `stop_out_margin_level_pct` | 50 | positions are closed (worst first) when equity falls below this % of the margin |
 
-The defaults are **estimates**. Look up the real spread and swap for each instrument in your broker's
-specification table and put them in `config.json`, otherwise the result is not comparable.
+The defaults come from XTB's instrument specification table (Poland, November 2026): the upper end of
+the "target spread" range (BTC and ETH 0.1-0.3 %, SOL 0.25-0.5 %; in volatile markets it can be wider) and
+the crypto CFD swap of -0.097222 % a day for a long and -0.027778 % for a short. Shorts are cheaper to hold
+than longs. Brokers change these; check the table (xtb.com -> Specification -> Crypto) now and then and
+update `config.json`.
 
 ## Measuring
 

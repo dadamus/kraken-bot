@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.2
+- Default costs from XTB's specification table instead of estimates: spread BTC 0.3 %, ETH 0.3 %, SOL 0.5 %
+  (the upper end of the target spread), swap -0.097222 % a day for longs and -0.027778 % for shorts.
+  An existing `config.json` keeps its own values; edit it to change them.
+
 ## 0.1.1
 - The image no longer downloads the Kraken bot's package from GitHub while building (the install failed when
   GitHub's archive service answered 503). The add-on folder now carries a copy of it, kept identical by

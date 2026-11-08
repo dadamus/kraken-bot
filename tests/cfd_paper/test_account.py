@@ -33,15 +33,16 @@ def test_short_loses_when_the_price_rises(ccfg, cstate):
 
 
 def test_swap_is_charged_once_per_midnight_on_both_sides(ccfg, cstate):
+    ccfg["swap_pct_per_day"] = {"long": 0.1, "short": 0.03}  # a short costs less to hold, as at XTB
     account.open_position(ccfg, cstate, "XBTEUR", "long", 0.01, 50000, 48000, 54000, NOW)
     account.open_position(ccfg, cstate, "ETHEUR", "short", 0.1, 3000, 3150, 2700, NOW)
     assert account.charge_swaps(ccfg, cstate, {"XBTEUR": 50000, "ETHEUR": 3000}, NOW + timedelta(hours=6)) == 0
     fee = account.charge_swaps(ccfg, cstate, {"XBTEUR": 50000, "ETHEUR": 3000}, NOW + timedelta(days=3))
-    assert fee == pytest.approx((500 + 300) * 0.0006 * 3)
+    assert fee == pytest.approx((500 * 0.001 + 300 * 0.0003) * 3)
     assert account.charge_swaps(ccfg, cstate, {"XBTEUR": 50000, "ETHEUR": 3000}, NOW + timedelta(days=3, hours=5)) == 0
     tr = account.close_position(ccfg, cstate, "XBTEUR", 50000, "model: flat", NOW + timedelta(days=3))
-    assert tr["swap_eur"] == pytest.approx(0.9)
-    assert tr["net_eur"] == pytest.approx(tr["pnl_eur"] - 0.9, abs=0.01)
+    assert tr["swap_eur"] == pytest.approx(1.5)
+    assert tr["net_eur"] == pytest.approx(tr["pnl_eur"] - 1.5, abs=0.01)
 
 
 def test_margin_is_notional_over_leverage(ccfg, cstate):

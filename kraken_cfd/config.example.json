@@ -6,8 +6,8 @@
   "start_eur": 1000,
   "allow_short": true,
   "leverage": 2,
-  "spread_pct": {"XBTEUR": 0.3, "ETHEUR": 0.4, "SOLEUR": 0.8, "default": 0.8},
-  "swap_pct_per_day": {"long": 0.06, "short": 0.06},
+  "spread_pct": {"XBTEUR": 0.3, "ETHEUR": 0.3, "SOLEUR": 0.5, "default": 1.0},
+  "swap_pct_per_day": {"long": 0.097222, "short": 0.027778},
   "stop_out_margin_level_pct": 50,
   "risk": {
     "min_confidence": 0.65,
