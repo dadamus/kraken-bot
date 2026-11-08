@@ -4,6 +4,7 @@
   "model": "claude-opus-5-5",
   "effort": "high",
   "start_eur": 1000,
+  "style": "cautious",
   "allow_short": true,
   "leverage": 2,
   "spread_pct": {"XBTEUR": 0.3, "ETHEUR": 0.3, "SOLEUR": 0.5, "default": 1.0},

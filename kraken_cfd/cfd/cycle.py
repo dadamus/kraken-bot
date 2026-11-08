@@ -119,7 +119,8 @@ def account_view(cfg, state, prices, now):
 def trading_terms(cfg):
     r = cfg["risk"]
     spreads = {pair: account.spread_pct(cfg, pair) for pair in cfg["pairs"]}
-    return {"instrument": "CFD on the coin's EUR price (simulated)", "leverage": cfg["leverage"],
+    return {"instrument": "CFD on the coin's EUR price (simulated)", "style": model.style(cfg),
+            "leverage": cfg["leverage"],
             "margin_pct_of_notional": round(100 / float(cfg["leverage"]), 1), "allow_short": cfg.get("allow_short", True),
             "round_trip_spread_pct": spreads, "overnight_swap_pct_per_day": cfg["swap_pct_per_day"],
             "stop_out_margin_level_pct": cfg["stop_out_margin_level_pct"],

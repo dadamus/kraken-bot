@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.3
+- `style` in `config.json`: `cautious` (default, as before) or `aggressive` - the model looks for a trade in
+  every pair every day, in either direction, with tight stops and larger targets. The model also sees the
+  style in `trading_terms`. DOCS.md has a matching aggressive preset for the `risk` rules.
+
 ## 0.1.2
 - Default costs from XTB's specification table instead of estimates: spread BTC 0.3 %, ETH 0.3 %, SOL 0.5 %
   (the upper end of the target spread), swap -0.097222 % a day for longs and -0.027778 % for shorts.

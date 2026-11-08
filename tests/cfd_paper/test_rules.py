@@ -192,3 +192,13 @@ def test_trade_stats_split_by_side():
     s = report.trade_stats(trades)
     assert s["long"]["win_rate_pct"] == 100.0 and s["short"]["net_eur"] == -5.0
     assert s["all"]["n"] == 2 and s["all"]["by_reason"] == {"STOP": 1, "TAKE-PROFIT": 1}
+
+
+def test_style_changes_the_prompt_and_unknown_falls_back_to_cautious(ccfg):
+    assert "{STYLE}" not in model.system_prompt(ccfg) and "{LANGUAGE}" not in model.system_prompt(ccfg)
+    assert "Prefer no trade over a weak one" in model.system_prompt(ccfg)
+    ccfg["style"] = "aggressive"
+    assert "Trade actively" in model.system_prompt(ccfg)
+    assert "Prefer no trade" not in model.system_prompt(ccfg)
+    ccfg["style"] = "yolo"
+    assert model.style(ccfg) == "cautious"

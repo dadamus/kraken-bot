@@ -37,6 +37,20 @@ and a take-profit. Code decides:
 | `risk.max_drawdown_pct` / `halt_days` | 25 / 7 | no new positions after this drawdown from the peak |
 | `allow_short` | true | `false` = long / flat only (for comparison) |
 
+**Style** (`style`): `cautious` (default) tells the model that flat is a normal answer and a weak trade is
+worse than none; `aggressive` asks it to look for a setup in every pair every day, in either direction,
+with tight stops and targets 2-4x the stop. Confidence and `p_up_3d` stay honest either way (they are
+scored). The rules in code are set separately; an aggressive preset to go with it:
+
+```json
+"style": "aggressive",
+"risk": {"min_confidence": 0.55, "risk_per_trade_pct": 3, "max_margin_per_trade_pct": 45,
+         "max_margin_pct": 100, "default_reward_risk": 3, "max_drawdown_pct": 50, "halt_days": 3}
+```
+
+With three correlated positions at 3 % risk each, one bad day can cost about 9 % of equity, and full margin
+use brings the 50 % stop-out within reach of a sharp move. That is the point of the experiment, not a bug.
+
 A call for the other direction closes the open position first; with enough confidence it then opens the
 new one. `hold` or the same direction may move the stop closer, never further.
 

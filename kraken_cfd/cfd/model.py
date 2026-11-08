@@ -14,9 +14,29 @@ ACTIONS = ("long", "short", "flat", "hold")
 SYSTEM_PROMPT = (Path(__file__).resolve().parent / "system_prompt.txt").read_text(encoding="utf-8").rstrip()
 last_usage = None  # token counts of the latest call, read by the cycle for the cost tracking
 
+# The trading style ("style" in config.json): how readily the model trades. The rules in code are set
+# separately in "risk" (the aggressive preset in DOCS.md lowers min_confidence and raises the size).
+STYLES = {
+    "cautious": 'Be skeptical. Most days are noise; "flat" and "hold" are normal answers. Prefer no trade over a '
+                "weak one.",
+    "aggressive": "Trade actively: this run tests an aggressive style on purpose. Look for a tradeable setup in every "
+                  "pair every day, in either direction - momentum and breakouts, failed breakouts, mean reversion "
+                  "from stretched levels, funding or sentiment extremes. A position with a modest edge is preferred "
+                  'over sitting out; use "flat" only when you see no edge at all or the costs would eat it. Being '
+                  "wrong often is fine when the winners are larger than the losers: place tight, logical stops and "
+                  "let targets run (take_profit 2-4x the stop distance). Still give honest confidence and p_up_3d "
+                  "numbers - they are scored; the aggressiveness is in how often you trade, not in overstating "
+                  "certainty.",
+}
 
-def system_prompt():
-    return SYSTEM_PROMPT.replace("{LANGUAGE}", texts.language_name())
+
+def style(cfg):
+    return cfg.get("style") if cfg.get("style") in STYLES else "cautious"
+
+
+def system_prompt(cfg=None):
+    return (SYSTEM_PROMPT.replace("{STYLE}", STYLES[style(cfg or {})])
+            .replace("{LANGUAGE}", texts.language_name()))
 
 
 def number(x, lo=None, hi=None):
@@ -87,7 +107,7 @@ def ask(cfg, payload):
         betas=["server-side-fallback-2026-07-01"], fallbacks="default",
         output_config={"effort": cfg.get("effort", "high"),
                        "format": {"type": "json_schema", "schema": schema(cfg["pairs"])}},
-        system=system_prompt(),
+        system=system_prompt(cfg),
         messages=[{"role": "user", "content": json.dumps(payload, ensure_ascii=False, indent=1)}])
     last_usage = costs.usage_of(resp)  # billed even when the answer is unusable
     if resp.stop_reason != "end_turn":
