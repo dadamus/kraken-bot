@@ -2,6 +2,7 @@
 import csv
 import json
 import time
+from datetime import datetime
 
 import pytest
 
@@ -217,3 +218,55 @@ def test_live_order_below_minimum_or_rejected(cfg, fake_kraken):
     assert fake_kraken["orders"] == []
     fake_kraken["reject"] = True
     assert kraken.live_execute(cfg, INFO, {"side": "buy", "eur": 100}, 70000.0) is False
+
+
+# ---------------------------------------------------------------- the "keep what you had" benchmark
+def test_first_sync_records_the_starting_holdings(cfg, fake_kraken):
+    cfg["pairs"] = ["XBTEUR"]
+    state = make_state()
+    kraken.sync_live(cfg, state, {"XBTEUR": 70000.0})
+    hold = state["hold_start"]
+    assert hold["eur"] == 50.5 and hold["coins"] == {"XBTEUR": 0.01}
+
+    # the bot sells at 69000 and the price recovers to 72000: keeping the coins would have been better
+    fake_kraken["balance"] = {"ZEUR": str(50.5 + 0.01 * 69000 * 0.996), "XXBT": "0"}
+    kraken.sync_live(cfg, state, {"XBTEUR": 72000.0})
+    vs = portfolio.vs_hold(state, {"XBTEUR": 72000.0})
+    assert vs["value"] == pytest.approx(770.5)
+    assert vs["diff_eur"] == pytest.approx(50.5 + 687.24 - 770.5, abs=0.01)
+    assert vs["diff_pp"] < 0 and vs["return_pct"] == pytest.approx((770.5 / 750.5 - 1) * 100, abs=0.01)
+
+
+def test_deposits_go_to_both_the_bot_and_the_benchmark(cfg, fake_kraken):
+    cfg["pairs"] = ["XBTEUR"]
+    state = make_state()
+    kraken.sync_live(cfg, state, {"XBTEUR": 70000.0})
+    since = state["ledger_checked"]
+    fake_kraken["ledger"] = [ledger("deposit", "ZEUR", 100, since + 10),
+                             ledger("deposit", "XXBT", 0.001, since + 20)]
+    fake_kraken["balance"] = {"ZEUR": "150.5", "XXBT": "0.011"}
+    kraken.sync_live(cfg, state, {"XBTEUR": 70000.0})
+    assert state["hold_start"]["eur"] == pytest.approx(150.5)
+    assert state["hold_start"]["coins"]["XBTEUR"] == pytest.approx(0.011)
+    vs = portfolio.vs_hold(state, {"XBTEUR": 60000.0})  # a deposit is neither profit nor loss for either
+    assert vs["diff_eur"] == pytest.approx(0) and state["cash_flows"][0]["ts"] == since + 10
+
+
+def test_older_state_rebuilds_the_starting_holdings_from_trades(cfg, fake_kraken):
+    cfg["pairs"] = ["XBTEUR"]
+    state = make_state()
+    state["synced_at"], state["start_eur"] = "2026-11-05 11:17", 750.5
+    state["ledger_checked"] = since = 1_000_000.0
+    fake_kraken["trades"] = [trade("buy", 0.005, 300, 1.2, t=since - 100),  # before the start: already in it
+                             trade("sell", 0.01, 690, 2.76, t=since + 100)]  # the stop sold everything
+    fake_kraken["balance"] = {"ZEUR": str(50.5 + 690 - 2.76), "XXBT": "0"}
+    kraken.sync_live(cfg, state, {"XBTEUR": 72000.0})
+    hold = state["hold_start"]
+    assert hold["eur"] == pytest.approx(50.5) and hold["coins"]["XBTEUR"] == pytest.approx(0.01)
+    assert hold["since"] == datetime.fromtimestamp(since).strftime("%Y-%m-%d %H:%M")
+    assert state["start_eur"] == 750.5  # the bot's own reference does not move
+
+
+def test_paper_state_has_no_hold_benchmark(cfg):
+    state = make_state()
+    assert portfolio.vs_hold(state, {"XBTEUR": 70000.0, "ETHEUR": 2000.0, "SOLEUR": 80.0}) is None

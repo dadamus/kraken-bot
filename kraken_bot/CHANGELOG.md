@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.10.1
+- Fair comparison with doing nothing (live): the bot is now compared with simply keeping the coins and
+  EUR the account held when the bot started, over the same period and with the same deposits and
+  withdrawals. The panel tile "Bot vs holding" shows the difference in percentage points and in EUR.
+  Before, the bot's result (since the live start, deposits included) was set against an equal split of all
+  pairs since the first decision - a different period and coins the bot never held. That benchmark stays in
+  the performance section, labelled "equal split".
+- An existing live state rebuilds the starting holdings once from the Kraken trade history.
+- Deposits and withdrawals are also added to the "keep" benchmark; Home Assistant gets `hold_return_pct`,
+  `vs_hold_pp` and `vs_hold_eur` on `sensor.kraken_bot_return`.
+
 ## 2.10.0
 - The model says what it is waiting for: with every call a concrete condition (`watch`, e.g. "buy if BTC
   holds above 68 500 for several hours") and optional price levels above / below the current price.

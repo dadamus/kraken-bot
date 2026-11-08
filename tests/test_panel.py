@@ -43,6 +43,18 @@ def test_data_from_the_bot_files(files):
     assert len(d["decisions"]) == 3 and "reasoning" in d["decisions"][0]
 
 
+def test_live_compares_with_keeping_the_starting_coins(files):
+    state = make_state(eur=1100.0, start_eur=1100.0)  # the stop sold the coins; they were worth 600 at the start
+    state["hold_start"] = {"since": "2026-11-05 11:35", "eur": 500.0, "coins": {"XBTEUR": 0.01}}
+    (files / "state_live.json").write_text(json.dumps(state), encoding="utf-8")
+    (files / "decisions_live.csv").write_bytes((files / "decisions.csv").read_bytes())
+    d = panel.data({**OPTS, "live": True}, panel.Prices())  # BTC 61000 from the log
+    hold = d["portfolio"]["hold"]
+    assert hold["value"] == pytest.approx(1110.0) and hold["diff_eur"] == pytest.approx(-10.0)
+    assert hold["diff_pp"] == pytest.approx(-0.91, abs=0.01) and d["portfolio"]["return_pct"] == pytest.approx(0)
+    assert panel.data(OPTS, panel.Prices())["portfolio"]["hold"] is None  # paper: no starting coins
+
+
 def test_data_before_the_first_start(isolated):
     assert panel.data(OPTS, panel.Prices()) == {"error": "no config.json yet"}
     (isolated / "config.json").write_text(json.dumps(BASE_CFG), encoding="utf-8")

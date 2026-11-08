@@ -49,7 +49,10 @@ def ha_publish(cfg, state, prices, mode, new_rows=None):
         ha_set(ha, f"{p}_equity", round(equity, 2), t("ha_equity"), "mdi:wallet", "EUR",
                start_eur=state["start_eur"], eur_free=round(state["eur"], 2),
                halted_until=state.get("halted_until"), **common)
-        ha_set(ha, f"{p}_return", round(pnl, 2), t("ha_return"), "mdi:chart-line", "%", **common)
+        hold = portfolio.vs_hold(state, prices) or {}
+        ha_set(ha, f"{p}_return", round(pnl, 2), t("ha_return"), "mdi:chart-line", "%",
+               hold_since=hold.get("since"), hold_return_pct=hold.get("return_pct"),
+               vs_hold_pp=hold.get("diff_pp"), vs_hold_eur=hold.get("diff_eur"), **common)
         ha_set(ha, f"{p}_free_eur", round(state["eur"], 2), t("ha_free_eur"), "mdi:cash", "EUR")
         for pair, price in prices.items():
             pos = state["positions"].get(pair, portfolio.empty_position())

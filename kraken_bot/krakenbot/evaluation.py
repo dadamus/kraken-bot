@@ -172,6 +172,9 @@ def evaluation(cfg, state, rows, candles, prices):
                   "avg_exposure_pct": rnd(mean((1 - e / q) * 100 for e, q in runs.values() if q), 1),
                   "cycles": len(runs)},
           **evaluate_signals(rows, candles, prices)}
+    hold = portfolio.vs_hold(state, prices)
+    if hold:
+        ev["hold"] = hold
     if candles and rows:
         ev["shadow"] = shadow_strategies(cfg, rows, candles, prices)
     return ev
@@ -183,6 +186,10 @@ def evaluation_lines(ev):
 
     b, s, c = ev["bot"], ev.get("shadow"), ev["p_up_3d"]
     out = [t("ev_bot", ret=f(b["return_pct"]), exposure=b["avg_exposure_pct"], cycles=b["cycles"])]
+    h = ev.get("hold")
+    if h:
+        out.append(t("ev_hold", since=h["since"], ret=f(h["return_pct"]), diff=f(h["diff_pp"], " pp"),
+                     eur=h["diff_eur"]))
     if s:
         out.append(t("ev_shadow", since=s["since"], bh=f(s["buy_and_hold_pct"]), rule=s["trend_rule"],
                      trend=f(s["trend_pct"])))

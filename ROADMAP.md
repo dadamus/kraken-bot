@@ -3,7 +3,7 @@
 Where the project stands, what comes next and - just as important - what has to be true before the next
 step. The bot trades real money, so every phase ends with a check, not with a feature list.
 
-Last updated: 2026-11-07 (version 2.10.0).
+Last updated: 2026-11-08 (version 2.10.0).
 
 ## Principles
 
@@ -55,6 +55,8 @@ After roughly a month of live data. Questions, each with the place in the panel 
 | Do extra cycles make better calls than the daily one? | Performance, daily vs extra cycles | Tune or switch off `extra_cycles` (or only `watch_levels`) |
 | Is the model cost reasonable against the capital and the result? | Model cost tile | Lower `effort`, fewer extra cycles, a cheaper model for extra cycles |
 | Is `min_confidence` 0.65 blocking good calls or letting bad ones through? | Decision log, calls by confidence | Adjust the threshold |
+| Is the bot too cautious while in cash? (After "hold" with no position, does the price rise more than the round-trip fees within 3-7 days, consistently and across more than one market swing?) | Performance, calls by action (hold, 3d/7d) | If yes: soften the prompt ("cautious", "hold is fine"), lower `min_confidence`, let `watch` also give a buy on a pullback to support, not only on a breakout. If no: keep it, the caution is paying |
+| Does the model earn its cost in periods when the bot sits in cash and the trend rule is also out? | Model cost tile, the bot vs the trend rule | If not: skip the model call in those periods unless a `watch` level or an event fires |
 
 Note: with three highly correlated pairs a month is still a small sample. Treat the first evaluation as a
 direction, not a verdict; a firmer one after about three months.

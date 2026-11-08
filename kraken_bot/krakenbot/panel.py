@@ -111,6 +111,7 @@ def build(cfg, state, log, prices, opts):
         "mode": "live" if opts.get("live") else "paper", "run_time": opts.get("run_time"), "pairs": pairs,
         "portfolio": {"eur": state.get("eur"), "equity": equity, "start_eur": state.get("start_eur"),
                       "return_pct": (equity / state["start_eur"] - 1) * 100 if equity and state.get("start_eur") else None,
+                      "hold": portfolio.vs_hold(state, known) if equity is not None else None,
                       "halted_until": state.get("halted_until"), "synced_at": state.get("synced_at"),
                       "cash_flows": state.get("cash_flows") or []},
         "positions": positions, "summary": state.get("last_summary"), "charts": state.get("charts") or {},

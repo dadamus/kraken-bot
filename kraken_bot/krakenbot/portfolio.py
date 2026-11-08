@@ -34,6 +34,25 @@ def equity_of(state, prices):
                               if pair in prices)
 
 
+def hold_value(hold, prices):
+    """Value of the "do nothing" portfolio: what the account held at the start, plus deposits as they came."""
+    if any(p not in prices or prices[p] is None for p, q in hold["coins"].items() if q):
+        return None
+    return hold["eur"] + sum(q * prices[p] for p, q in hold["coins"].items() if q)
+
+
+def vs_hold(state, prices):
+    """The bot against simply keeping the starting holdings, over the same period and with the same
+    deposits and withdrawals: {"since", "value", "return_pct", "diff_eur", "diff_pp"} or None."""
+    hold, start = state.get("hold_start"), state.get("start_eur")
+    value = hold_value(hold, prices) if hold else None
+    if value is None or not start or any(prices.get(p) is None for p, pos in state["positions"].items() if pos.get("coin")):
+        return None
+    diff = equity_of(state, {p: v for p, v in prices.items() if v is not None}) - value
+    return {"since": hold["since"], "value": round(value, 2), "return_pct": round((value / start - 1) * 100, 2),
+            "diff_eur": round(diff, 2), "diff_pp": round(diff / start * 100, 2)}
+
+
 def paper_execute(cfg, state, pair, order, price):
     """Simulated fill with fee and slippage. In live mode it updates the working copy of the state."""
     fee = cfg["fee_pct"] / 100

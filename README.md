@@ -96,7 +96,7 @@ It follows the add-on `language` and the browser's light/dark mode, refreshes ev
 read-only: it can neither trade nor change settings.
 
 - status: mode, last sync, next cycle, extra cycles today, a trading halt,
-- equity and result since start, the bot versus buy and hold, share in crypto, the model's API cost,
+- equity and result since start, the bot versus keeping the starting coins (live; same period and deposits), share in crypto, the model's API cost,
 - per pair: price, position, result, the stop (🛡️ = the stop order rests on Kraken), the model's latest
   call with its chance of a rise and what it is waiting for (🎯), a 30-day chart with the 3-day forecast,
   the bot's buys / sells / stops, the entry and stop levels, and the price band outside which an extra cycle
@@ -264,7 +264,9 @@ Without measurement there is no way to tell whether the model adds anything. So:
   (good calls: higher after `buy` than after `sell`);
 - `p_up_3d` forecasts are scored with the direction hit rate, the Brier score (0.25 = coin flip, lower is
   better) and calibration (do ~0.6 forecasts come true ~60% of the time?);
-- benchmarks with fees since the first decision: **buy and hold** and **trend** (in the market while the daily
+- live: the bot versus **keeping the starting holdings** (the coins and EUR at the live start, with the same
+  deposits and withdrawals) - the fairest "do nothing" comparison;
+- benchmarks with fees since the first decision: **buy and hold** (equal split across the pairs) and **trend** (in the market while the daily
   close is above SMA50). If the bot does not beat them over a longer period, the model adds no value;
 - every automatic stop / take-profit sale is settled the same way: the price 1, 3 and 7 days after the sale
   (lower = the stop saved money, higher = it sold too early);

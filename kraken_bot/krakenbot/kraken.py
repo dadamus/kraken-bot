@@ -90,11 +90,46 @@ def apply_cash_flows(state, info, prices, entries):
         amount = float(x["amount"]) - float(x.get("fee") or 0)  # how much the balance changed
         eur = amount * value[x["asset"]]
         state["start_eur"] = round(state["start_eur"] + eur, 2)
+        hold = state.get("hold_start")
+        if hold:  # the "do nothing" benchmark gets the same money, in the same asset
+            pair = next((p for p, i in info.items() if i["base"] == x["asset"]), None)
+            if pair:
+                hold["coins"][pair] = hold["coins"].get(pair, 0.0) + amount
+            else:
+                hold["eur"] += amount
         state.setdefault("cash_flows", []).append(
-            {"time": datetime.fromtimestamp(float(x["time"])).strftime("%Y-%m-%d %H:%M"),
+            {"time": datetime.fromtimestamp(float(x["time"])).strftime("%Y-%m-%d %H:%M"), "ts": float(x["time"]),
              "type": x["type"], "asset": x["asset"], "amount": amount, "eur": round(eur, 2)})
         print(t("cash_flow_line", kind=t(f"cash_flow_{x['type']}"), amount=amount, asset=x["asset"],
                 eur=eur, start=state["start_eur"]))
+
+
+def holdings_at(state, info, trades, since):
+    """What the account held at `since` (unix time): the current balance with the later trades and the
+    recorded deposits / withdrawals undone. Used once, for a state from before the benchmark existed."""
+    coins = {p: state["positions"][p]["coin"] for p in info}
+    eur = state["eur"]
+    for x in trades:
+        pair = next((p for p, i in info.items() if x["pair"] in (i["key"], p)), None)
+        if not pair or float(x["time"]) <= since:
+            continue
+        vol, cost, fee = float(x["vol"]), float(x["cost"]), float(x["fee"])
+        if x["type"] == "buy":
+            coins[pair] -= vol
+            eur += cost + fee
+        else:
+            coins[pair] += vol
+            eur -= cost - fee
+    for f in state.get("cash_flows") or []:
+        ts = f.get("ts") or datetime.strptime(f["time"], "%Y-%m-%d %H:%M").timestamp()
+        if ts <= since:
+            continue
+        pair = next((p for p, i in info.items() if i["base"] == f["asset"]), None)
+        if pair:
+            coins[pair] -= f["amount"]
+        else:
+            eur -= f["amount"]
+    return {"eur": max(eur, 0.0), "coins": {p: max(q, 0.0) for p, q in coins.items()}}
 
 
 def manual_entry_prices(cfg):
@@ -162,8 +197,18 @@ def sync_live(cfg, state, prices):
                                     "stop_price": old.get("stop_price") if coin >= min_coin else None,
                                     "exchange_stop": old.get("exchange_stop"),  # reconciled by exchange_stops
                                     "peak_price": old.get("peak_price") if coin >= min_coin else None}
+    now = datetime.now().strftime("%Y-%m-%d %H:%M")
     if not state.get("synced_at"):  # first live start: the reference point for return and drawdown
         state["start_eur"] = round(portfolio.equity_of(state, prices), 2)
+        state["hold_start"] = {"since": now, "eur": state["eur"],
+                               "coins": {p: state["positions"][p]["coin"] for p in info}}
+    elif "hold_start" not in state and state.get("ledger_checked"):
+        # a state from before the benchmark: rebuild the holdings at the moment the reference was set
+        flows = [f.get("ts") or datetime.strptime(f["time"], "%Y-%m-%d %H:%M").timestamp()
+                 for f in state.get("cash_flows") or []]
+        since = min([state["ledger_checked"]] + [ts - 1 for ts in flows])
+        state["hold_start"] = {"since": datetime.fromtimestamp(since).strftime("%Y-%m-%d %H:%M"),
+                               **holdings_at(state, info, trades, since)}
     if not state.get("ledger_checked"):  # only flows after this moment move the reference point
         state["ledger_checked"] = time.time()
     else:
@@ -171,7 +216,7 @@ def sync_live(cfg, state, prices):
             apply_cash_flows(state, info, prices, kraken_ledger(state["ledger_checked"]))
         except Exception as e:
             print(t("ledger_failed", err=e))
-    state["synced_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+    state["synced_at"] = now
     print(t("balance_line", eur=state["eur"],
             coins=", ".join(f"{p} {state['positions'][p]['coin']:.8f}" for p in info)))
     return info
