@@ -122,9 +122,10 @@ def account_view(cfg, state, prices, now):
             "halted_until": state.get("halted_until"), "positions": positions}
 
 
-def trading_terms(cfg, now=None):
+def trading_terms(cfg, now=None, state=None):
     r = cfg["risk"]
     now = now or datetime.now()
+    event = risk.event_ahead(cfg, state or {}, now)
     instruments = {}
     for pair in cfg["pairs"]:
         inst = account.instrument(cfg, pair)
@@ -140,7 +141,10 @@ def trading_terms(cfg, now=None):
     return {"account_currency": "EUR", "style": model.style(cfg), "allow_short": cfg.get("allow_short", True),
             "instruments": instruments, "stop_out_margin_level_pct": cfg["stop_out_margin_level_pct"],
             **{k: r[k] for k in ("min_confidence", "risk_per_trade_pct", "min_stop_atr", "default_stop_atr",
-                                 "max_stop_pct", "default_reward_risk")}}
+                                 "max_stop_pct", "default_reward_risk", "event_stop_atr", "event_window_hours")},
+            "min_stop_atr_now": risk.min_stop_atr(cfg, event),
+            "release_ahead": {"event": event["event"], "time_utc": event["time_utc"], "in_hours": event["in_hours"]}
+            if event else None}
 
 
 def recent(calls, trades, prices, now, days=7):
@@ -165,7 +169,8 @@ def execute(cfg, state, prices, markets, signals, halt, now):
     """Turns the calls into simulated orders: every close first (they free margin), then the opens.
     Returns (calls.csv rows, closed trades, events for the notifications)."""
     pairs = cfg["pairs"]
-    plans = {pair: risk.decide(cfg, state, pair, prices[pair], signals[pair], markets[pair].get("atr14"), halt)
+    event = risk.event_ahead(cfg, state, now)
+    plans = {pair: risk.decide(cfg, state, pair, prices[pair], signals[pair], markets[pair].get("atr14"), halt, event)
              if account.market_open(cfg, pair, now)
              else [{"do": "none", "why": f"model: {signals[pair]['action']}, market closed (weekend)"}]
              for pair in pairs}
@@ -226,7 +231,7 @@ def daily_cycle(cfg, state, offline_mode=False, now=None, ask=None):
     calls_log, trades_log = journal.read_calls(), journal.read_trades() + trades
     recent_calls, recent_trades = recent(calls_log, trades_log, prices, now)
     payload = {"markets": markets, "account": account_view(cfg, state, prices, now),
-               "trading_terms": trading_terms(cfg, now), "news_last_24h": news,
+               "trading_terms": trading_terms(cfg, now, state), "news_last_24h": news,
                "own_recent_calls": recent_calls, "own_recent_trades": recent_trades,
                "own_track_record": (state.get("evaluation") or {}).get("calls"), **context}
 

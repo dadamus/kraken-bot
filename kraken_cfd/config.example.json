@@ -26,6 +26,8 @@
     "max_margin_pct": 60,
     "min_trade_eur": 20,
     "min_stop_atr": 1,
+    "event_stop_atr": 2,
+    "event_window_hours": 48,
     "default_stop_atr": 2,
     "max_stop_pct": 10,
     "default_reward_risk": 2,

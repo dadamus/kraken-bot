@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0
+- Wider stops before high-impact US releases: within `risk.event_window_hours` (48: the cycle runs once a
+  day, so a position opened the day before a release is covered too) of a CPI, FOMC, payrolls or similar
+  release in the macro calendar, a stop is at least `risk.event_stop_atr` (2) daily ATRs from
+  the price instead of `min_stop_atr`. This applies to new positions and to a stop the model moves closer.
+  The risk in EUR stays `risk_per_trade_pct`, so the position is smaller. The model sees the release and
+  the minimum in `trading_terms` (`release_ahead`, `min_stop_atr_now`). `event_window_hours: 0` turns it off.
+
 ## 0.2.0
 - Bitcoin, gold and EUR/USD instead of three coins: one instrument per asset class, so the calls are more
   independent. Gold comes from Kraken's `PAXGEUR`, EUR/USD from `EURUSD`.

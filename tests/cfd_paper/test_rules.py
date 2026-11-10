@@ -1,10 +1,10 @@
 """The rules in code, the stop replay between cycles, the model's answer and the evaluation."""
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from .cfd_helpers import NOW, sig
 
-from cfd import account, guard, model, report, risk
+from cfd import account, cycle, guard, model, report, risk
 
 PRICES = {"XBTEUR": 50000.0, "ETHEUR": 3000.0, "SOLEUR": 150.0}
 
@@ -28,6 +28,59 @@ def test_model_stop_is_kept_between_one_atr_and_max_stop_pct(ccfg):
 def test_take_profit_closer_than_the_stop_is_replaced(ccfg):
     assert risk.levels(ccfg, "long", 100.0, 3.0, model_stop=95.0, model_tp=103.0)[1] == 110.0
     assert risk.levels(ccfg, "long", 100.0, 3.0, model_stop=95.0, model_tp=108.0)[1] == 108.0
+
+
+def calendar(state, hours_from_now, title="CPI m/m", impact="High"):
+    """Puts one US release `hours_from_now` after NOW into the cached macro calendar."""
+    when = (NOW.astimezone(timezone.utc) + timedelta(hours=hours_from_now)).isoformat()
+    state["macro_calendar_cache"] = {"week": "x", "fetched": "x", "events": [
+        {"title": title, "country": "USD", "date": when, "impact": impact}]}
+
+
+def test_release_ahead_is_found_within_the_window(ccfg, cstate):
+    assert risk.event_ahead(ccfg, cstate, NOW) is None  # no calendar
+    calendar(cstate, 10)
+    assert risk.event_ahead(ccfg, cstate, NOW)["event"] == "CPI m/m"
+    calendar(cstate, 50)  # beyond event_window_hours (48)
+    assert risk.event_ahead(ccfg, cstate, NOW) is None
+    calendar(cstate, -1)  # already out
+    assert risk.event_ahead(ccfg, cstate, NOW) is None
+    calendar(cstate, 30)  # the day before: still covered
+    assert risk.event_ahead(ccfg, cstate, NOW)
+    ccfg["risk"]["event_window_hours"] = 0  # off
+    assert risk.event_ahead(ccfg, cstate, NOW) is None
+
+
+def test_stop_is_wider_before_a_release(ccfg):
+    event = {"event": "CPI m/m"}
+    assert risk.levels(ccfg, "long", 100.0, 3.0, model_stop=98.0)[0] == 97.0  # 1 ATR normally
+    assert risk.levels(ccfg, "long", 100.0, 3.0, model_stop=98.0, event=event)[0] == 94.0  # 2 ATR before CPI
+    assert risk.levels(ccfg, "short", 100.0, 3.0, model_stop=101.0, event=event)[0] == 106.0
+    assert risk.levels(ccfg, "long", 100.0, 3.0, model_stop=90.0, event=event)[0] == 90.0  # wider is kept
+
+
+def test_wider_stop_before_a_release_keeps_the_risk_in_eur(ccfg, cstate):
+    calendar(cstate, 5)
+    steps = risk.decide(ccfg, cstate, "SOLEUR", 100.0, sig("long", 0.9, stop=98.0), 3.0, None,
+                        risk.event_ahead(ccfg, cstate, NOW))
+    assert steps[0]["stop"] == 94.0 and "CPI m/m" in steps[0]["why"]
+    qty, _ = risk.size(ccfg, cstate, PRICES, "SOLEUR", 100.0, steps[0]["dist"])
+    assert qty == pytest.approx(2.5)  # 1.5 % of 1000 EUR / 6 EUR instead of / 2 EUR
+
+
+def test_stop_is_not_tightened_inside_the_release_floor(ccfg, cstate):
+    account.open_position(ccfg, cstate, "SOLEUR", "short", 1.0, 100.0, 110.0, 80.0, NOW)
+    risk.decide(ccfg, cstate, "SOLEUR", 100.0, sig("hold", stop=101.0), 3.0, None, {"event": "CPI m/m"})
+    assert cstate["positions"]["SOLEUR"]["stop"] == 106.0  # moved closer, but only to 2 ATR
+    risk.decide(ccfg, cstate, "SOLEUR", 100.0, sig("hold", stop=101.0), 3.0, None)
+    assert cstate["positions"]["SOLEUR"]["stop"] == 101.0  # no release ahead: the model's level
+
+
+def test_model_sees_the_release_and_the_wider_minimum(ccfg, cstate):
+    calendar(cstate, 5)
+    terms = cycle.trading_terms(ccfg, NOW, cstate)
+    assert terms["min_stop_atr_now"] == 2 and terms["release_ahead"]["event"] == "CPI m/m"
+    assert cycle.trading_terms(ccfg, NOW)["release_ahead"] is None
 
 
 # --- position size ------------------------------------------------------------------------------------
