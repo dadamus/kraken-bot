@@ -23,3 +23,6 @@ jobs:
       - run: docker run --rm kraken-bot python -c "import anthropic, requests, bot"
       - run: docker build -t kraken-cfd kraken_cfd
       - run: docker run --rm -e CFD_DATA_DIR=/tmp/cfd kraken-cfd python cfd_bot.py --offline
+      - run: docker build -t kraken-intraday kraken_intraday
+      - run: docker run --rm -e INTRADAY_DATA_DIR=/tmp/intraday kraken-intraday python intraday_bot.py --offline
+      - run: docker run --rm -e INTRADAY_DATA_DIR=/tmp/intraday kraken-intraday python intraday_bot.py --backtest --offline

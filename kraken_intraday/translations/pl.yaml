@@ -1,0 +1,13 @@
+configuration:
+  anthropic_api_key:
+    name: Klucz API Anthropic
+    description: Klucz z console.anthropic.com. Używany raz dziennie do ustalenia reżimu dnia dla każdego instrumentu.
+  language:
+    name: Język
+    description: Język panelu, powiadomień i uzasadnień modelu.
+  run_time:
+    name: Godzina reżimu dnia
+    description: Godzina (HH:MM, lokalna) cyklu dziennego, który ustala reżimy. Najlepiej przed sesją europejską; ustaw kilka minut od cykli pozostałych add-onów.
+  refresh_minutes:
+    name: Odświeżanie (minuty)
+    description: Jak często sprawdzane są stopy, take-profity, swap i stop-out depozytu; krok godzinowy strategii wykonuje się w pierwszym odświeżeniu po każdej pełnej godzinie. Bez zapytań do modelu.

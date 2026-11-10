@@ -318,6 +318,16 @@ does not touch the Kraken bot. Its purpose is to measure whether the short side 
 anything after costs. Install it from the same add-on store entry; details in
 [`kraken_cfd/DOCS.md`](kraken_cfd/DOCS.md).
 
+## Experiment: intraday paper add-on (hourly rules)
+
+A third **paper-only** add-on, **Kraken intraday paper** (`kraken_intraday/`), trades on the hourly scale:
+fixed rules (a breakout and a mean-reversion strategy on hourly candles) trade bitcoin, gold and EUR/USD on
+the same simulated CFD account, and once a day a **regime** per instrument decides which rules may trade.
+Two books run side by side: one takes the regime from Claude, the other from a fixed rule on daily candles,
+so the panel shows both whether hourly trading pays after costs and whether the model beats the rule. A
+backtest of the rules on the last 30 days of hourly candles runs on the start. Details in
+[`kraken_intraday/DOCS.md`](kraken_intraday/DOCS.md).
+
 ## Development and tests
 
 ```bash
@@ -365,7 +375,8 @@ add-on, also add the code to `language: list(en|pl)` in `config.yaml` and a file
 | `docker-compose.yml`, `.env.example` | Standalone Docker |
 | `repository.yaml` | Makes this repository installable from the Home Assistant add-on store |
 | `kraken_cfd/` | The CFD paper add-on (module map in `cfd/__init__.py`); `kraken_cfd/krakenbot/` is a copy of the bot's package - after changing `kraken_bot/krakenbot` run `python scripts/sync_krakenbot.py` (a test fails until you do) |
-| `tests/` | pytest suite (`tests/cfd_paper/` for the CFD paper add-on) |
+| `kraken_intraday/` | The intraday paper add-on (module map in `intraday/__init__.py`); `kraken_intraday/krakenbot/` and `kraken_intraday/cfd/` are copies of the bot's and the CFD add-on's packages - after changing either run `python scripts/sync_krakenbot.py` (a test fails until you do) |
+| `tests/` | pytest suite (`tests/cfd_paper/` and `tests/intraday_paper/` for the paper add-ons) |
 | `SECURITY.md` | How to report a vulnerability |
 
 Data files (never committed): `config.json`, `state.json` / `state_live.json` (portfolio: free EUR and the

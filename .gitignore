@@ -14,5 +14,6 @@ __pycache__/
 .venv/
 .claude/
 
-# CFD paper add-on data
+# paper add-ons' data
 data_cfd/
+data_intraday/

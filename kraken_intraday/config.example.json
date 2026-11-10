@@ -1,0 +1,60 @@
+{
+  "language": "en",
+  "pairs": ["XBTEUR", "PAXGEUR", "EURUSD"],
+  "model": "claude-opus-5-5",
+  "effort": "high",
+  "start_eur": 1000,
+  "allow_short": true,
+  "leverage": 2,
+  "spread_pct": {"XBTEUR": 0.3, "ETHEUR": 0.3, "SOLEUR": 0.5, "default": 1.0},
+  "swap_pct_per_day": {"long": 0.097222, "short": 0.027778},
+  "instruments": {
+    "XBTEUR": {"name": "Bitcoin", "asset_class": "crypto"},
+    "PAXGEUR": {"name": "Gold (PAXG, 1 troy ounce)", "asset_class": "gold", "leverage": 20, "spread_pct": 0.03,
+                "swap_pct_per_day": {"long": 0.034556, "short": 0.012667},
+                "weekend_close": "fri 23:00", "weekend_open": "mon 00:00"},
+    "EURUSD": {"name": "EUR/USD", "asset_class": "currency", "quote": "USD", "leverage": 30, "spread_pct": 0.015,
+               "swap_pct_per_day": {"long": 0.008333, "short": -0.000003},
+               "weekend_close": "fri 22:00", "weekend_open": "sun 23:00"}
+  },
+  "stop_out_margin_level_pct": 50,
+  "strategies": {
+    "breakout": {"enabled": true, "channel_hours": 20, "ema_hours": 50, "stop_atr": 1.5, "reward_risk": 2,
+                 "trail_atr": 2},
+    "reversion": {"enabled": true, "band_hours": 20, "band_std": 2, "rsi_hours": 14, "rsi_low": 30,
+                  "rsi_high": 70, "stop_atr": 1.5}
+  },
+  "intraday": {
+    "atr_hours": 14,
+    "min_target_to_cost": 4,
+    "max_hold_hours": 24,
+    "max_trades_per_day": 4,
+    "max_daily_loss_pct": 2,
+    "blackout_before_min": 60,
+    "blackout_after_min": 60,
+    "flat_before_weekend": true,
+    "regime_max_age_hours": 30,
+    "rules_regime": {"adx_trend": 20}
+  },
+  "risk": {
+    "min_confidence": 0.5,
+    "risk_per_trade_pct": 0.5,
+    "max_margin_per_trade_pct": 25,
+    "max_margin_pct": 60,
+    "min_trade_eur": 20,
+    "max_drawdown_pct": 15,
+    "halt_days": 3
+  },
+  "news_feeds": [
+    "https://www.coindesk.com/arc/outboundfeeds/rss/",
+    "https://cointelegraph.com/rss",
+    "https://decrypt.co/feed"
+  ],
+  "home_assistant": {
+    "enabled": true,
+    "url": "http://homeassistant.local:8123",
+    "notify": "",
+    "notify_trades": false,
+    "daily_summary": true
+  }
+}

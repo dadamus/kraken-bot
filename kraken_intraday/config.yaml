@@ -1,0 +1,29 @@
+# Home Assistant add-on definition. Paper only: it never sends an order anywhere.
+name: Kraken intraday paper
+version: "0.1.0"
+slug: kraken_intraday
+description: "Paper-only experiment: hourly breakout and mean-reversion rules on bitcoin, gold and EUR/USD; Claude sets each day's regime, a fixed rule runs alongside for comparison"
+url: https://github.com/dadamus/kraken-bot
+arch:
+  - aarch64
+  - amd64
+init: false
+startup: application
+boot: auto
+homeassistant_api: true
+ingress: true
+ingress_port: 8097
+panel_icon: mdi:clock-fast
+panel_title: Intraday paper
+map:
+  - addon_config:rw
+options:
+  anthropic_api_key: ""
+  language: en
+  run_time: "07:45"
+  refresh_minutes: 5
+schema:
+  anthropic_api_key: password
+  language: list(en|pl)
+  run_time: match(^([01]\d|2[0-3]):[0-5]\d$)
+  refresh_minutes: int(1,15)

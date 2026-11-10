@@ -3,7 +3,7 @@
 Where the project stands, what comes next and - just as important - what has to be true before the next
 step. The bot trades real money, so every phase ends with a check, not with a feature list.
 
-Last updated: 2026-11-08 (version 2.10.0).
+Last updated: 2026-11-10 (version 2.10.1; intraday paper add-on 0.1.0).
 
 ## Principles
 
@@ -58,6 +58,10 @@ After roughly a month of live data. Questions, each with the place in the panel 
 | Is the bot too cautious while in cash? (After "hold" with no position, does the price rise more than the round-trip fees within 3-7 days, consistently and across more than one market swing?) | Performance, calls by action (hold, 3d/7d) | If yes: soften the prompt ("cautious", "hold is fine"), lower `min_confidence`, let `watch` also give a buy on a pullback to support, not only on a breakout. If no: keep it, the caution is paying |
 | Does the model earn its cost in periods when the bot sits in cash and the trend rule is also out? | Model cost tile, the bot vs the trend rule | If not: skip the model call in those periods unless a `watch` level or an event fires |
 
+The paper add-ons are read at the same evaluation, not acted on: for the intraday one (started 2026-11-10),
+whether the hourly rules earn after costs (before vs after costs, per instrument) and whether the model book
+beats the rules book by more than the model's cost.
+
 Note: with three highly correlated pairs a month is still a small sample. Treat the first evaluation as a
 direction, not a verdict; a firmer one after about three months.
 
@@ -83,6 +87,8 @@ Not committed - each one is picked only if the data points to it.
   only by the CFD paper add-on (`kraken_cfd/`), which never sends orders; its results are read at the same
   evaluation, not acted on.
 - Withdrawals or any other money movement by the bot (the API key never gets those permissions).
-- High-frequency trading or reacting within seconds - the model's horizon is 1-3 days.
+- High-frequency trading or reacting within seconds - the model's horizon is 1-3 days. The hourly scale is
+  studied separately and on paper only by the intraday paper add-on (`kraken_intraday/`): fixed hourly
+  rules, the day's regime from the model or from a rule, results before and after costs.
 - More data sources for their own sake: the model already sees a lot, and more input mostly adds noise.
 - A "run the model now" button in the panel: the panel stays read-only, and every model call costs money.

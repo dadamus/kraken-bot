@@ -1,0 +1,13 @@
+configuration:
+  anthropic_api_key:
+    name: Anthropic API key
+    description: Key from console.anthropic.com. Used once a day to set the day's regime per instrument.
+  language:
+    name: Language
+    description: Language of the panel, notifications and the model's reasoning.
+  run_time:
+    name: Daily regime time
+    description: Time (HH:MM, local) of the daily cycle that sets the regimes. Before the European session works best; keep it a few minutes away from the other add-ons' cycles.
+  refresh_minutes:
+    name: Refresh interval (minutes)
+    description: How often stops, take-profits, the swap and the margin stop-out are checked; the hourly strategy step runs in the first refresh after every full hour. No model calls.
