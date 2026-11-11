@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1
+- The copy of the CFD paper package is updated (the CFD paper's break-even stop). It is off here: the
+  intraday config has no `breakeven_r`, and the breakout strategy keeps its own trailing stop.
+
 ## 0.1.0
 - First version: hourly **breakout** and **reversion** rules on bitcoin, gold and EUR/USD, a simulated CFD
   account (the CFD paper add-on's mechanics and XTB costs), paper only.

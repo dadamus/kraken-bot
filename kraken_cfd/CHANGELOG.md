@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0
+- Break-even stop: once a position has gone `risk.breakeven_r` (1) times its initial risk in its favour,
+  the stop moves to the level where closing gets the entry price back after the spread (the swap is not
+  covered). The refresh checks it on every minute candle; the move counts from the next candle, and a stop
+  that is already tighter is kept. The model sees `breakeven_r` in `trading_terms` and `stop_at_breakeven`
+  per position. `breakeven_r: 0` turns it off.
+
 ## 0.3.0
 - Wider stops before high-impact US releases: within `risk.event_window_hours` (48: the cycle runs once a
   day, so a position opened the day before a release is covered too) of a CPI, FOMC, payrolls or similar

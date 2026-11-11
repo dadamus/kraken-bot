@@ -115,7 +115,8 @@ def account_view(cfg, state, prices, now):
                            "move_in_direction_pct": round((price / pos["entry_mid"] - 1) * 100 * sign, 2),
                            "days_open": round((now.timestamp() - pos["opened_ts"]) / 86400, 1),
                            "swap_paid_eur": round(pos["swap_eur"], 2),
-                           "market_open_now": account.market_open(cfg, pair, now)}
+                           "market_open_now": account.market_open(cfg, pair, now),
+                           "stop_at_breakeven": bool(pos.get("breakeven"))}
     return {"balance_eur": round(state["balance"], 2), "equity_eur": round(account.equity(cfg, state, prices), 2),
             "margin_used_eur": round(account.margin_used(cfg, state, prices), 2),
             "margin_level_pct": round(level, 1) if level else None,
@@ -142,6 +143,7 @@ def trading_terms(cfg, now=None, state=None):
             "instruments": instruments, "stop_out_margin_level_pct": cfg["stop_out_margin_level_pct"],
             **{k: r[k] for k in ("min_confidence", "risk_per_trade_pct", "min_stop_atr", "default_stop_atr",
                                  "max_stop_pct", "default_reward_risk", "event_stop_atr", "event_window_hours")},
+            "breakeven_r": r.get("breakeven_r", 0),
             "min_stop_atr_now": risk.min_stop_atr(cfg, event),
             "release_ahead": {"event": event["event"], "time_utc": event["time_utc"], "in_hours": event["in_hours"]}
             if event else None}

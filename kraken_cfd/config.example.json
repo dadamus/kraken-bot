@@ -31,6 +31,7 @@
     "default_stop_atr": 2,
     "max_stop_pct": 10,
     "default_reward_risk": 2,
+    "breakeven_r": 1,
     "max_drawdown_pct": 25,
     "halt_days": 7
   },

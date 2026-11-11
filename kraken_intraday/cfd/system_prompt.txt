@@ -72,7 +72,8 @@ Respond with JSON (one decision per pair):
                   within event_window_hours, the minimum is trading_terms.min_stop_atr_now ATRs instead (the
                   size shrinks so the risk in EUR stays the same). With hold or the same direction you may move
                   the stop of an open position closer to the price, never further (and not inside that minimum
-                  while a release is ahead),
+                  while a release is ahead). Once a position has gone trading_terms.breakeven_r x its initial
+                  risk in its favour, the code moves its stop to break-even by itself (0 = off),
     "take_profit": the target price (in the pair's currency) (long: above the price, short: below it), or null. It must be at
                    least as far as the stop, otherwise default_reward_risk x the stop distance is used,
     "reasoning": "1-3 sentences: the setup, why this direction now, and what would prove you wrong"}

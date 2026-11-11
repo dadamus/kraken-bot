@@ -33,6 +33,7 @@ and a take-profit. Code decides:
 | `risk.min_stop_atr` / `max_stop_pct` / `default_stop_atr` | 1 / 10 / 2 | where the stop may be (the model's, kept in this band) |
 | `risk.event_stop_atr` / `event_window_hours` | 2 / 48 | minimum stop in ATRs while a high-impact US release (CPI, FOMC, payrolls) is this close; also for a stop the model moves closer. The size shrinks, the risk in EUR stays. `event_window_hours: 0` = off |
 | `risk.default_reward_risk` | 2 | take-profit when the model gives none or one closer than the stop |
+| `risk.breakeven_r` | 1 | after this many R (the initial risk, entry to stop) in profit the stop moves to break-even: closing there gets the entry price back after the spread (the swap is not covered). Checked on every candle between cycles; `0` = off |
 | `risk.max_margin_per_trade_pct` / `max_margin_pct` | 25 / 60 | margin caps, % of equity |
 | `risk.min_trade_eur` | 20 | smaller positions are skipped |
 | `risk.max_drawdown_pct` / `halt_days` | 25 / 7 | no new positions after this drawdown from the peak |
