@@ -233,12 +233,15 @@ def load_context(pairs, state, prices, candles, closed_all, offline_mode):
 def portfolio_view(state, prices, pairs):
     """The portfolio as the model sees it."""
     positions = state["positions"]
+    view = {pair: {"coin": positions[pair]["coin"],
+                   "entry_price": positions[pair]["entry_price"],
+                   "stop_price": positions[pair].get("stop_price"),
+                   "value_eur": round(positions[pair]["coin"] * prices[pair], 2)}
+            for pair in pairs}
+    for pair, exit_ in claude.last_exits(pairs, prices).items():
+        view[pair]["last_exit"] = exit_
     return {"eur_free": round(state["eur"], 2), "equity_eur": round(portfolio.equity_of(state, prices), 2),
-            "positions": {pair: {"coin": positions[pair]["coin"],
-                                 "entry_price": positions[pair]["entry_price"],
-                                 "stop_price": positions[pair].get("stop_price"),
-                                 "value_eur": round(positions[pair]["coin"] * prices[pair], 2)}
-                          for pair in pairs}}
+            "positions": view}
 
 
 def execute_signals(cfg, state, book, markets, prices, signals, live, pair_info, mode):

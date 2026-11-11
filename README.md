@@ -50,6 +50,12 @@ order: it only starts an extra cycle in which the model checks with fresh data w
 really came. The condition is shown on the pair's card in the panel and kept in the decision log, and the
 model sees its earlier conditions in the next cycle.
 
+**Buying back after a sale.** While the bot is out of a coin it sold in the last 30 days (by the model or
+a stop), the model sees that sale's price and how far the price is from it. Buying back higher means the
+sale lost money versus simply holding, so the model is asked to look first for a confirmation at or below
+the exit price (a higher low, a failed breakdown) rather than only for a level well above it, without
+buying into a falling market.
+
 ## Install as a Home Assistant add-on
 
 Requires Home Assistant OS or Supervised (the add-on store).

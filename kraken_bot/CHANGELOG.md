@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.11.0
+- Buying back after a sale: while the bot is out of a coin it sold in the last 30 days (by the model or a
+  stop), the model sees the sale in `portfolio.positions` (`last_exit`: date, price, model / stop, and the
+  current price versus the exit). Buying back above the exit means the sale lost money versus holding, so
+  the prompt asks the model to look first for a confirmation at or below the exit price (a higher low, a
+  failed breakdown back above the broken level) instead of only a level well above it. It is still told not
+  to buy into a falling market. Before, it only saw sales from the last 7 days of calls and set e.g. "buy
+  above 68 300" after a stop sale at 67 420.
+
 ## 2.10.1
 - Fair comparison with doing nothing (live): the bot is now compared with simply keeping the coins and
   EUR the account held when the bot started, over the same period and with the same deposits and

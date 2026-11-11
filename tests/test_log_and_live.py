@@ -57,6 +57,35 @@ def test_recent_decisions_include_stops_from_the_same_window(isolated):
     assert "rule" not in out[0]  # ordinary calls have no rule field
 
 
+def test_last_exit_is_the_last_sale_without_a_purchase_since(isolated):
+    journal.log_rows([
+        log_row("2026-11-01 08:05", action="buy", executed="buy", price=100),
+        log_row("2026-11-03 08:05", action="sell", executed="sell", price=104),
+        log_row("2026-11-05 16:55", action="stop", executed="sell", rule="STOP (level 99)", price=98),
+        log_row("2026-11-06 08:05", price=95),
+        log_row("2026-11-05 08:05", pair="ETHEUR", action="stop", executed="sell", price=50),
+        log_row("2026-11-07 08:05", pair="ETHEUR", action="buy", executed="buy", price=48),
+        log_row("2026-09-01 08:05", pair="SOLEUR", action="sell", executed="sell", price=10),
+    ])
+    out = claude.last_exits(["XBTEUR", "ETHEUR", "SOLEUR"], {"XBTEUR": 99.96, "ETHEUR": 49, "SOLEUR": 9},
+                            now=datetime(2026, 11, 11, 18, 0))
+    assert out["XBTEUR"] == {"date": "2026-11-05 16:55", "price": 98.0, "by": "stop", "price_vs_exit_pct": 2.0}
+    assert "ETHEUR" not in out  # bought back since the sale
+    assert "SOLEUR" not in out  # older than 30 days
+
+
+def test_model_sees_the_last_exit_in_its_portfolio(isolated):
+    from krakenbot import cli
+    journal.log_rows([log_row(datetime.now().strftime("%Y-%m-%d %H:%M"), action="stop", executed="sell",
+                              price=67420.5)])
+    view = cli.portfolio_view(make_state(eur=335.91), {"XBTEUR": 66848.4, "ETHEUR": 1850, "SOLEUR": 74},
+                              ["XBTEUR", "ETHEUR", "SOLEUR"])
+    assert view["positions"]["XBTEUR"]["last_exit"]["price"] == 67420.5
+    assert view["positions"]["XBTEUR"]["last_exit"]["price_vs_exit_pct"] == pytest.approx(-0.85, abs=0.01)
+    assert "last_exit" not in view["positions"]["ETHEUR"]
+    assert "last_exit" in claude.system_prompt()
+
+
 # ---------------------------------------------------------------- entry price from history
 INFO = {"key": "XXBTZEUR", "base": "XXBT", "quote": "ZEUR", "lot_decimals": 8, "ordermin": 0.0001}
 

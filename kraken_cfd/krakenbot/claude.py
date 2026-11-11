@@ -1,6 +1,7 @@
 """Claude: the system prompt, the response schema, the context and the API call."""
 import json
 import os
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import anthropic
@@ -109,6 +110,29 @@ def ask_claude(cfg, markets, news, portfolio, context):
             signals[pair] = {"action": "hold", "confidence": 0.0, "p_up_3d": None, "stop_price": None,
                              "size_pct": 0.0, "reasoning": t("missing_assessment"), "watch": parse_watch(None)}
     return signals, str(d.get("summary", ""))[:600]
+
+
+def last_exits(pairs, prices, days=30, now=None):
+    """Per pair the last sale (by the model or a stop / take-profit) with no purchase since, from the last
+    `days` days: buying back above that price means the sale cost money versus simply holding."""
+    since = ((now or datetime.now()) - timedelta(days=days)).strftime("%Y-%m-%d %H:%M")
+    rows = journal.read_log()
+    result = {}
+    for pair in pairs:
+        last = None
+        for r in rows:
+            if r["pair"] != pair:
+                continue
+            if r["executed"] == "buy":
+                last = None
+            elif r["executed"] == "sell":
+                last = r
+        if last and last["date"] >= since:
+            price = float(last["price"])
+            result[pair] = {"date": last["date"], "price": price,
+                            "by": "stop" if last["model_action"] == "stop" else "model",
+                            "price_vs_exit_pct": round((prices[pair] / price - 1) * 100, 2)}
+    return result
 
 
 def recent_decisions(pairs, prices, days=7):

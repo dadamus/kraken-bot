@@ -16,6 +16,14 @@ Additional context (may be missing, in which case the data is unavailable):
   TAKE-PROFIT = target reached). After a stop do not buy back right away without a new reason - the price
   has just broken the level you considered the invalidation of your thesis. A new reason can be e.g. the price
   clearly reclaiming the broken level and holding above it for several hours (see last_24_hours),
+- portfolio.positions[pair].last_exit: your last sale of the coin (by you or by a stop) with no purchase
+  since, from the last 30 days - date, price, by ("model" / "stop") and price_vs_exit_pct (price_now versus
+  the exit). Buying back above the exit price means the sale lost money versus simply holding (plus the fees
+  of both trades), so the higher you buy back, the more of the sale is wasted. When you set the condition for
+  buying back, look first for a confirmation at or below the exit price (e.g. a higher low, a failed
+  breakdown that returns above the level that broke, a reclaimed nearer level) instead of only waiting for a
+  level well above it; buying above the exit is still right when the trend really turned. This is no reason
+  to buy into a falling market: without a confirmation, staying out is fine,
 - own_track_record: settlement of all your earlier calls - average price change 1/3/7 days after
   buy/hold/sell and calibration of p_up_3d (Brier: 0.25 = coin flip, lower = better; buckets: whether e.g.
   ~0.7 forecasts came true ~70% of the time), the same split into daily and extra cycles (by_cycle), and
