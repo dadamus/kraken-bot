@@ -69,7 +69,11 @@ h2 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacin
 .pup .mid { position: absolute; left: 50%; top: -2px; width: 1px; height: 12px; background: var(--faint); }
 .reason { font-size: 13px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer; }
 .reason.open { -webkit-line-clamp: unset; }
-.watch { margin-top: 8px; padding: 7px 10px; border-radius: 8px; background: var(--accent-bg); font-size: 13px; line-height: 1.45; }
+.watch { margin-top: 8px; padding: 7px 10px; border-radius: 8px; background: var(--accent-bg); font-size: 13px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer; }
+.watch.open { -webkit-line-clamp: unset; }
+/* cards in a row are equally tall: the text block takes the slack, so the charts line up */
+.pair-card { display: flex; flex-direction: column; }
+.pair-card .view { flex: 1 0 auto; }
 .watch b { color: var(--accent); font-weight: 600; }
 .chart { position: relative; margin-top: 10px; }
 .chart svg { display: block; width: 100%; height: auto; overflow: visible; }
@@ -345,7 +349,7 @@ function pairCard(pair) {
     bandTxt = `<div class="band-line">⚡ ${L.extraBand} <b class="num">${bound(tr.low, tr.low_from)} – ${bound(tr.high, tr.high_from)}</b> <span class="faint">(${L.now} ${fmtPrice(tr.price)})</span>
       <div class="range"><span style="left:${at}%"></span></div></div>`;
   }
-  return `<div class="card">
+  return `<div class="card pair-card">
     <div class="pair-head"><span class="name">${esc(name(pair))}</span><span class="small faint">${esc(pair)}</span>
       <span class="price num">${fmtPrice(pos.price)} €</span></div>
     <div class="small" style="text-align:right" title="${L.todayHint}">${pct(day)} <span class="faint">${L.today}</span></div>
@@ -472,9 +476,9 @@ function drawCharts() {
 }
 
 document.addEventListener("click", (e) => {
-  const t = e.target.closest("[data-f],[data-p],[data-row],.reason");
+  const t = e.target.closest("[data-f],[data-p],[data-row],.reason,.watch");
   if (!t || !D) return;
-  if (t.classList.contains("reason")) { t.classList.toggle("open"); return; }
+  if (t.classList.contains("reason") || t.classList.contains("watch")) { t.classList.toggle("open"); return; }
   if (t.dataset.f !== undefined) logFilter = t.dataset.f;
   else if (t.dataset.p !== undefined) logPair = t.dataset.p;
   else if (t.dataset.row !== undefined) { const id = t.dataset.row; openRows.has(id) ? openRows.delete(id) : openRows.add(id); }

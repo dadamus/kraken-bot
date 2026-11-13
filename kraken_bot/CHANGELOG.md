@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.11.1
+- Panel: the pair cards' charts line up again. The model's condition (🎯) is cut to three lines like its
+  reasoning (click to read all of it), and a card's text block takes up the difference in height.
+
 ## 2.11.0
 - Buying back after a sale: while the bot is out of a coin it sold in the last 30 days (by the model or a
   stop), the model sees the sale in `portfolio.positions` (`last_exit`: date, price, model / stop, and the
