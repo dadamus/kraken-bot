@@ -69,8 +69,10 @@ h2 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacin
 .pup .mid { position: absolute; left: 50%; top: -2px; width: 1px; height: 12px; background: var(--faint); }
 .reason { font-size: 13px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer; }
 .reason.open { -webkit-line-clamp: unset; }
-.watch { margin-top: 8px; padding: 7px 10px; border-radius: 8px; background: var(--accent-bg); font-size: 13px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer; }
-.watch.open { -webkit-line-clamp: unset; }
+.watch { margin-top: 8px; padding: 7px 10px; border-radius: 8px; background: var(--accent-bg); font-size: 13px; line-height: 1.45; cursor: pointer; }
+/* the clamp sits inside the padding, so no cut-off fourth line shows through it */
+.watch > span { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.watch.open > span { -webkit-line-clamp: unset; }
 /* cards in a row are equally tall: the text block takes the slack, so the charts line up */
 .pair-card { display: flex; flex-direction: column; }
 .pair-card .view { flex: 1 0 auto; }
@@ -214,6 +216,8 @@ function priceChart(el, pair) {
   if (!c || !c.history || !c.history.length) { el.innerHTML = `<div class="empty">${L.noData}</div>`; return; }
   const hist = c.history.slice(-30), fc = c.forecast || [];
   const pos = D.positions[pair] || {}, tr = (D.triggers.pairs || {})[pair];
+  // the history ends with the last closed day; the line continues to the current price
+  if (isNum(pos.price) && Date.now() > hist[hist.length - 1][0]) hist.push([Date.now(), +pos.price, "now"]);
   const t0 = hist[0][0], t1 = fc.length ? fc[fc.length - 1][0] : hist[hist.length - 1][0];
   const marks = D.decisions.filter((r) => r.pair === pair && (["buy", "sell"].includes(r.executed) || r.model_action === "stop"))
     .map((r) => ({ t: parseDate(r.date).getTime(), p: +r.price, a: r.model_action === "stop" ? "stop" : r.executed, r }))
@@ -257,7 +261,7 @@ function priceChart(el, pair) {
   s += `<line class="cross" x1="0" x2="0" y1="${pad.t}" y2="${h - pad.b}" stroke="var(--faint)" stroke-dasharray="2 3" style="display:none"/></svg><div class="tip"></div>`;
   el.innerHTML = s;
   const svg = el.querySelector("svg"), tip = el.querySelector(".tip"), cross = el.querySelector(".cross");
-  const points = hist.map((p) => ({ t: p[0], v: p[1], k: L.price })).concat(fc.slice(1).map((f) => ({ t: f[0], v: f[1], k: L.forecast })));
+  const points = hist.map((p) => ({ t: p[0], v: p[1], k: p[2] === "now" ? L.now : L.price })).concat(fc.slice(1).map((f) => ({ t: f[0], v: f[1], k: L.forecast })));
   svg.addEventListener("mousemove", (ev) => {
     const r = svg.getBoundingClientRect(), px = (ev.clientX - r.left) * (w / r.width);
     const near = points.reduce((a, b) => Math.abs(x(b.t) - px) < Math.abs(x(a.t) - px) ? b : a);
@@ -340,7 +344,7 @@ function pairCard(pair) {
         <span class="small muted">${L.confidence} ${fmt(+last.confidence * 100, 0)}% · ${esc(last.date.slice(5))}${(last.cycle || "").startsWith("extra") ? " · ⚡" : ""}</span></div>
       ${p !== null ? `<div class="pup"><span class="muted">${L.chanceUp}</span><div class="track"><div class="mid"></div><div class="mark" style="left:calc(${p * 100}% - 1px)"></div></div><b class="num">${fmt(p * 100, 0)}%</b></div>` : ""}
       <div class="reason" title="">${esc(last.reasoning)}</div>
-      ${last.watch ? `<div class="watch">🎯 <b>${L.waitingFor}</b> ${esc(last.watch)}</div>` : ""}</div>`;
+      ${last.watch ? `<div class="watch"><span>🎯 <b>${L.waitingFor}</b> ${esc(last.watch)}</span></div>` : ""}</div>`;
   }
   let bandTxt = `<div class="band-line">${L.notYet}</div>`;
   if (tr) {

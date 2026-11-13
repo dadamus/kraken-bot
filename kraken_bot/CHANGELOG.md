@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.11.2
+- Panel: the price line on the pair charts runs on to the current price. Before, it ended at the last
+  closed day, so a big move today (e.g. after a US release) was missing from the chart.
+- The 🎯 condition no longer shows a cut-off fourth line under the three visible ones.
+
 ## 2.11.1
 - Panel: the pair cards' charts line up again. The model's condition (🎯) is cut to three lines like its
   reasoning (click to read all of it), and a card's text block takes up the difference in height.
