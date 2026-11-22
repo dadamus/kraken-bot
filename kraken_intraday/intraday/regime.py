@@ -28,6 +28,21 @@ def pct(a, b):
     return (a / b - 1) * 100
 
 
+def daily_trend(cfg, daily):
+    """Whether the instrument is in a daily downtrend: the last daily close below the daily_sma-day SMA and that
+    SMA lower than daily_slope_days days before. `daily`: closed daily candles, oldest first. Returns
+    {"down", "close", "sma", "sma_before"}, or None with too few candles. Reversion longs are not opened in a
+    downtrend (strategies.signal): the first weeks of the intraday add-on lost 10 of 10 of them."""
+    p = cfg["strategies"]["reversion"]
+    n, back = p.get("daily_sma", 50), p.get("daily_slope_days", 10)
+    closes = [c["c"] for c in daily]
+    if len(closes) < n + back:
+        return None
+    sma, before = sum(closes[-n:]) / n, sum(closes[-n - back:-back]) / n
+    return {"down": closes[-1] < sma and sma < before, "close": closes[-1],
+            "sma": round(sma, 6), "sma_before": round(before, 6)}
+
+
 def rules(cfg, daily):
     """The rule: trend_up when the last daily close is above SMA50, SMA20 is above SMA50 and the daily ADX is at
     least adx_trend; trend_down the mirror; otherwise range. `daily`: closed daily candles, oldest first.

@@ -102,14 +102,20 @@ def reversion(cfg, side, candles, price, atr_h):
 SIGNALS = {"breakout": breakout, "reversion": reversion}
 
 
-def signal(cfg, pair, regime_name, candles, price):
+def signal(cfg, pair, regime_name, candles, price, daily=None):
     """The first signal the regime allows that clears the costs: (proposal, None), or (None, why not).
-    A proposal: {strategy, side, stop, take_profit, dist (the stop distance), why}."""
+    A proposal: {strategy, side, stop, take_profit, dist (the stop distance), why}. `daily`: the pair's
+    regime.daily_trend; in a daily downtrend no reversion long is opened (no_long_in_daily_downtrend)."""
     atr_h = hourly_atr(cfg, candles)
     if not atr_h:
         return None, "not enough hourly candles"
     notes = []
     for strategy, side in regime.allowed(cfg, regime_name):
+        if (strategy, side) == ("reversion", "long") and daily and daily.get("down") \
+                and cfg["strategies"]["reversion"].get("no_long_in_daily_downtrend", True):
+            notes.append(f"no reversion long in a daily downtrend (close {daily['close']:g} below the falling "
+                         f"SMA{cfg['strategies']['reversion'].get('daily_sma', 50)} {sig(daily['sma']):g})")
+            continue
         prop, note = SIGNALS[strategy](cfg, side, candles, price, atr_h)
         if not prop:
             notes.append(note)

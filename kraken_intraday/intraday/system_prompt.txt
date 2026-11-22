@@ -10,7 +10,9 @@ each instrument, which rules may trade it for the next 24 hours:
 - "range"      - only mean reversion, both ways: a long when an hourly close falls below the lower Bollinger
                  band with RSI oversold, a short when it rises above the upper band with RSI overbought; the
                  target is the middle band (trading_terms.strategies.reversion). Choose it when you expect the
-                 price to chop around a level without a lasting direction.
+                 price to chop around a level without a lasting direction. In a daily downtrend
+                 (markets[pair].daily_downtrend: the daily close below a falling SMA50) code opens no reversion
+                 long, so "range" then only fades rallies with shorts.
 - "no_trade"   - nothing new, and an open position the regime no longer allows is closed. Choose it when
                  neither works: a scheduled event likely to whipsaw the price both ways, a market too quiet to
                  pay the costs, or no view.

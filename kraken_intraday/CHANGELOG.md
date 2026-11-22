@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.0
+- No reversion long in a daily downtrend (both books): when the last daily close is below the 50-day SMA and
+  that SMA is lower than 10 days before, the range regime only fades rallies with shorts. In the first two
+  weeks the rules book lost 10 of its 11 reversion longs, all in such a downtrend. Settings
+  `strategies.reversion.no_long_in_daily_downtrend` (default true), `daily_sma` (50), `daily_slope_days` (10).
+- The model sees `daily_downtrend` per pair and is told about the rule. A backtest of the rules book over
+  the last 30 days (the same period the rule was drawn from, so optimistic): -0.9 % without it, +4.8 % with it.
+- Takes effect from the next daily cycle (it computes the daily trend).
+
 ## 0.1.1
 - The copy of the CFD paper package is updated (the CFD paper's break-even stop). It is off here: the
   intraday config has no `breakeven_r`, and the breakout strategy keeps its own trailing stop.

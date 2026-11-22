@@ -241,7 +241,9 @@ def daily_cycle(cfg, state, offline_mode=False, now=None, ask=None, hours=None):
     # the rule first: it needs no API, and the rules book keeps trading if the model call fails
     for pair in pairs:
         state["regimes"]["rules"][pair] = {**regime.rules(cfg, closed_all[pair]), "confidence": None, "date": date}
+        state.setdefault("daily_trend", {})[pair] = trend = regime.daily_trend(cfg, closed_all[pair])
         markets[pair]["hourly"] = hourly_view(cfg, pair, candles.get(pair), prices[pair])
+        markets[pair]["daily_downtrend"] = bool(trend and trend["down"])
     engine.save_state(state)
 
     news = [] if offline_mode else market.fetch_news(cfg["news_feeds"])

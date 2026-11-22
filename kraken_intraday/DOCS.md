@@ -66,6 +66,8 @@ pair:
    - **reversion**: the hourly close falls below the lower Bollinger band (`band_hours` 20, `band_std` 2) with
      RSI (`rsi_hours` 14) below `rsi_low` (30) - a long; the mirror above the upper band with RSI above
      `rsi_high` (70) - a short. Take-profit at the middle band, stop `stop_atr` (1.5) hourly ATRs away.
+     No reversion long in a daily downtrend: the last daily close below the `daily_sma` (50) SMA and that SMA
+     lower than `daily_slope_days` (10) days before (`no_long_in_daily_downtrend`, on by default).
    - **The cost filter**: the take-profit must be at least `min_target_to_cost` (4) x the instrument's
      round-trip spread away. With the default costs that is 1.2 % for bitcoin, 0.12 % for gold and 0.06 % for
      EUR/USD - bitcoin trades only on big hours.

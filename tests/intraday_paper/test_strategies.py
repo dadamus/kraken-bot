@@ -76,6 +76,37 @@ def test_reversion_fades_a_stretched_drop_to_the_middle_band(icfg):
     assert strategies.signal(icfg, "XBTEUR", "trend_up", cs, 98.0)[0] is None
 
 
+def test_daily_trend_needs_a_close_below_a_falling_sma(icfg):
+    down = regime.daily_trend(icfg, days([100 * 0.99 ** i for i in range(70)]))
+    assert down["down"] and down["close"] < down["sma"] < down["sma_before"]
+    # a fresh dip below a still rising SMA50 is not a downtrend
+    dip = regime.daily_trend(icfg, days([100 * 1.01 ** i for i in range(69)] + [150]))
+    assert dip["close"] < dip["sma"] and not dip["down"]
+    assert not regime.daily_trend(icfg, days([100 * 1.01 ** i for i in range(70)]))["down"]
+    assert regime.daily_trend(icfg, days([100.0] * 59)) is None  # fewer than 50 + 10 days
+
+
+def test_no_reversion_long_in_a_daily_downtrend(icfg):
+    cs = drop()
+    down = {"down": True, "close": 90.0, "sma": 95.0, "sma_before": 97.0}
+    prop, note = strategies.signal(icfg, "XBTEUR", "range", cs, 98.0, down)
+    assert prop is None and "no reversion long in a daily downtrend" in note
+    assert strategies.signal(icfg, "XBTEUR", "range", cs, 98.0, {**down, "down": False})[0]["side"] == "long"
+    assert strategies.signal(icfg, "XBTEUR", "range", cs, 98.0, None)[0]["side"] == "long"  # unknown: allowed
+    icfg["strategies"]["reversion"]["no_long_in_daily_downtrend"] = False
+    assert strategies.signal(icfg, "XBTEUR", "range", cs, 98.0, down)[0]["side"] == "long"
+
+
+def test_the_hourly_step_uses_the_daily_trend(icfg):
+    from intraday import engine
+    from .intraday_helpers import NOW, set_regime
+    state = engine.new_state(icfg, NOW)
+    set_regime(state, "range")
+    state["daily_trend"] = {"XBTEUR": {"down": True, "close": 90.0, "sma": 95.0, "sma_before": 97.0}}
+    rows, events, status = engine.step(icfg, state, "model", {"XBTEUR": drop()}, {"XBTEUR": 98.0}, NOW)
+    assert not events and "daily downtrend" in status["XBTEUR"]
+
+
 def test_a_target_too_close_for_the_spread_is_skipped(icfg):
     icfg["spread_pct"]["XBTEUR"] = 1.0  # 4x the spread = a 4 % target, far beyond a 1.5 % move
     prop, note = strategies.signal(icfg, "XBTEUR", "trend_up", breakout_up(), 101.5)

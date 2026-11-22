@@ -177,7 +177,7 @@ def step(cfg, state, book_name, candles, prices, now):
         if blocked:
             status[pair] = blocked
             continue
-        prop, note = strategies.signal(cfg, pair, current, cs, price)
+        prop, note = strategies.signal(cfg, pair, current, cs, price, (state.get("daily_trend") or {}).get(pair))
         if not prop:
             status[pair] = note
             continue

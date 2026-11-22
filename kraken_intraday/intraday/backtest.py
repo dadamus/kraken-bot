@@ -129,6 +129,7 @@ def simulate(cfg, hourly, daily):
                 closed = [d for d in daily.get(pair, []) if d["t"] + 86400 <= day]
                 state["regimes"][BOOK][pair] = {**regime.rules(cfg, closed), "confidence": None,
                                                 "date": now.strftime(FMT)}
+                state.setdefault("daily_trend", {})[pair] = regime.daily_trend(cfg, closed)
         candles = {pair: hourly[pair][max(0, index[pair][t] - WINDOW + 1):index[pair][t] + 1] for pair in bar}
         rows, _, _ = engine.step(cfg, state, BOOK, candles, prices, now)
         trades += rows
