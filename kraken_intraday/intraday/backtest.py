@@ -91,6 +91,8 @@ def load(cfg, csv_args=(), offline=False):
             hours, _ = market.fetch_ohlc(pair, 31, 60)
             api_days, _ = market.fetch_ohlc(pair, 720)
             source[pair] = "Kraken API (last 720 hours)"
+        if not offline:  # the daily candles without spike wicks, as in the live cycle
+            api_days = account.clean_candles(cfg, pair, api_days)
         days = {c["t"]: c for c in daily_from_hourly(hours)}
         days.update({c["t"]: c for c in api_days})  # Kraken's own daily candles win; they also reach further back
         hourly[pair], daily[pair] = hours, [days[t] for t in sorted(days)]

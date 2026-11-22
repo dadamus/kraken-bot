@@ -69,18 +69,21 @@ def refresh(cfg, state, now=None):
     ha.publish(cfg, state, prices, [{"kind": "close", **tr} for tr in trades])
 
 
-def load_markets(pairs, offline_mode, crypto=None):
-    """Candles, prices and indicators per pair. `crypto`: the crypto pairs (vs_btc only makes sense for them)."""
+def load_markets(pairs, offline_mode, crypto=None, cfg=None):
+    """Candles, prices and indicators per pair. `crypto`: the crypto pairs (vs_btc only makes sense for them).
+    With `cfg` the spike wicks of thin Kraken books are cut first (account.clean_candles)."""
     markets, prices, closed_all = {}, {}, {}
     for i, pair in enumerate(pairs):
         if offline_mode:
             closed, price = offline.fake_market(60000.0 / (i * 10 + 1))
         else:  # 720 days (Kraken's maximum): SMA200, the yearly picture, settling the calls
             closed, price = market.fetch_ohlc(pair, 720)
+            closed = account.clean_candles(cfg, pair, closed)
         closed_all[pair], prices[pair] = closed, price
         markets[pair] = m = indicators.indicators(closed, price)
         if not offline_mode:
             hours = market.optional(f"hourly {pair}", market.fetch_hourly, pair)
+            hours = account.clean_candles(cfg, pair, hours) if hours else hours
             if hours:
                 m["last_24_hours"] = indicators.hourly(hours, price)
         print(f"  {pair}: {price:g}, 1d {m['change_1d_pct']}%, 7d {m['change_7d_pct']}%,"
@@ -119,6 +122,7 @@ def account_view(cfg, state, prices, now):
                            "stop_at_breakeven": bool(pos.get("breakeven"))}
     return {"balance_eur": round(state["balance"], 2), "equity_eur": round(account.equity(cfg, state, prices), 2),
             "margin_used_eur": round(account.margin_used(cfg, state, prices), 2),
+            "open_risk_eur": round(risk.open_risk(cfg, state, prices), 2),
             "margin_level_pct": round(level, 1) if level else None,
             "halted_until": state.get("halted_until"), "positions": positions}
 
@@ -143,6 +147,7 @@ def trading_terms(cfg, now=None, state=None):
             "instruments": instruments, "stop_out_margin_level_pct": cfg["stop_out_margin_level_pct"],
             **{k: r[k] for k in ("min_confidence", "risk_per_trade_pct", "min_stop_atr", "default_stop_atr",
                                  "max_stop_pct", "default_reward_risk", "event_stop_atr", "event_window_hours")},
+            "max_open_risk_pct": r.get("max_open_risk_pct"),
             "breakeven_r": r.get("breakeven_r", 0),
             "min_stop_atr_now": risk.min_stop_atr(cfg, event),
             "release_ahead": {"event": event["event"], "time_utc": event["time_utc"], "in_hours": event["in_hours"]}
@@ -222,7 +227,7 @@ def daily_cycle(cfg, state, offline_mode=False, now=None, ask=None):
     pairs = cfg["pairs"]
     print(f"=== CFD paper {now:%Y-%m-%d %H:%M}: {', '.join(pairs)}{' (OFFLINE)' if offline_mode else ''} ===")
     crypto = [pair for pair in pairs if account.is_crypto(cfg, pair)]
-    markets, prices, closed_all = load_markets(pairs, offline_mode, crypto)
+    markets, prices, closed_all = load_markets(pairs, offline_mode, crypto, cfg)
     if not offline_mode and "EURUSD" not in prices and any(account.instrument(cfg, p)["quote"] == "USD" for p in pairs):
         prices["EURUSD"] = market.fetch_price("EURUSD")  # to value USD-quoted pairs in EUR
     for pair in pairs:

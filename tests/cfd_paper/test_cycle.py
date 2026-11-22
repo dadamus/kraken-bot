@@ -8,7 +8,7 @@ from cfd import account, cycle, journal, panel
 
 
 def fake_markets(prices):
-    def load(pairs, offline_mode, crypto=None):
+    def load(pairs, offline_mode, crypto=None, cfg=None):
         markets = {p: {"atr14": prices[p] * 0.03, "price_now": prices[p]} for p in pairs}
         candles = {p: [] for p in pairs}
         return markets, dict(prices), candles

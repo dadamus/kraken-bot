@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.5.0
+- Spike wicks: Kraken's EUR/USD book is thin and its candles show wicks no broker's feed does (1.0952 ->
+  1.1859 on 2026-11-20). Such a stop fired the EUR/USD short that day at 1.104, while the market traded around
+  1.096. A wick longer than `max_wick` (5) median candle ranges is now cut, in the daily candles the model
+  and the ATR see and in the minute candles of the stop check. EUR/USD's ATR drops from 1.15 % to about
+  0.75 %. Off for gold and crypto (`instruments.<pair>.max_wick`).
+- A shared risk budget: `risk.max_open_risk_pct` (6) caps what all open positions together lose at their
+  stops; a new position gets only what is left. A stop at break-even risks nothing, so it frees the budget.
+  The model sees `max_open_risk_pct` and `account.open_risk_eur`. With `risk_per_trade_pct: 3` that is two
+  full positions at a time, so calls on one theme (a strong dollar) no longer add up to 9 %.
+- The model is told that gold's weekend candles are PAXG token trading, not the gold market, so a weekend
+  low is not a gold level.
+
 ## 0.4.0
 - Break-even stop: once a position has gone `risk.breakeven_r` (1) times its initial risk in its favour,
   the stop moves to the level where closing gets the entry price back after the spread (the swap is not

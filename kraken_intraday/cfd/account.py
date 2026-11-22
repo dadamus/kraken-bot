@@ -61,7 +61,30 @@ def instrument(cfg, pair):
             "quote": own.get("quote", "EUR"), "leverage": float(own.get("leverage", cfg["leverage"])),
             "spread_pct": float(own.get("spread_pct", default_spread)),
             "swap_pct_per_day": {**cfg["swap_pct_per_day"], **(own.get("swap_pct_per_day") or {})},
-            "weekend_close": own.get("weekend_close"), "weekend_open": own.get("weekend_open")}
+            "weekend_close": own.get("weekend_close"), "weekend_open": own.get("weekend_open"),
+            "max_wick": float(own.get("max_wick", MAX_WICK.get(own.get("asset_class", "crypto"), 0)))}
+
+
+# Kraken's EUR/USD book is thin: single orders leave wicks a broker's feed never shows (1.0952 -> 1.1859 on
+# 2026-11-20, 18 typical daily ranges). A wick longer than max_wick times the median candle range of the batch
+# is cut to that length; 0 = off. Used on the daily candles and on the candles of the stop check. Gold is off:
+# in a backtest a filter there also cut real hourly moves around US releases.
+MAX_WICK = {"currency": 5, "gold": 0, "crypto": 0}
+
+
+def clean_candles(cfg, pair, candles):
+    """The candles with spike wicks cut (see MAX_WICK): high / low at most max_wick median ranges beyond the
+    body. Returns the same list when the filter is off or there are too few candles to judge."""
+    k = instrument(cfg, pair)["max_wick"] if cfg else 0
+    if not k or len(candles) < 3:
+        return candles
+    ranges = sorted(c["h"] - c["l"] for c in candles)
+    med = ranges[len(ranges) // 2]
+    out = []
+    for c in candles:
+        top, bottom = max(c["o"], c["c"]), min(c["o"], c["c"])
+        out.append({**c, "h": min(c["h"], top + k * med), "l": max(c["l"], bottom - k * med)})
+    return out
 
 
 def spread_pct(cfg, pair):

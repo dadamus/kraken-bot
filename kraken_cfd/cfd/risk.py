@@ -59,20 +59,38 @@ def levels(cfg, side, price, atr, model_stop=None, model_tp=None, event=None):
     return sig(price - sign * dist), sig(tp), dist
 
 
+def open_risk(cfg, state, prices):
+    """EUR the open positions would lose if every stop were hit now (before costs). A stop at or beyond the
+    entry (break-even) risks nothing."""
+    total = 0.0
+    for pair, pos in state["positions"].items():
+        sign = 1 if pos["side"] == "long" else -1
+        fx = account.eur_per_quote(cfg, pair, account.price_of(prices, pair, pos), prices)
+        total += max(0.0, (pos["entry"] - pos["stop"]) * sign) * pos["qty"] * fx
+    return total
+
+
 def size(cfg, state, prices, pair, price, dist):
     """Quantity in units of the instrument (coins, ounces, euros), or (0, reason). `dist` is in the pair's
-    quote currency; risk and margin are in EUR."""
+    quote currency; risk and margin are in EUR. With max_open_risk_pct the new position's risk plus the open
+    positions' (open_risk) stays within that share of equity: correlated calls are one bigger bet."""
     r = cfg["risk"]
     lev = account.leverage(cfg, pair)
     fx = account.eur_per_quote(cfg, pair, price, prices)
     eq = account.equity(cfg, state, prices)
-    qty = eq * r["risk_per_trade_pct"] / 100 / (dist * fx)
+    risk_eur = eq * r["risk_per_trade_pct"] / 100
+    capped = ""
+    if r.get("max_open_risk_pct"):
+        left = eq * r["max_open_risk_pct"] / 100 - open_risk(cfg, state, prices)
+        if left < risk_eur:
+            risk_eur, capped = max(left, 0.0), f", open risk at max_open_risk_pct {r['max_open_risk_pct']:g}%"
+    qty = risk_eur / (dist * fx)
     room = min(eq * r["max_margin_per_trade_pct"] / 100, eq * r["max_margin_pct"] / 100
                - account.margin_used(cfg, state, prices))
     qty = min(qty, max(room, 0) * lev / (price * fx))
     notional = qty * price * fx
     if notional < r["min_trade_eur"]:
-        return 0.0, f"size {notional:.0f} EUR below min_trade_eur (margin room {max(room, 0):.0f} EUR)"
+        return 0.0, f"size {notional:.0f} EUR below min_trade_eur (margin room {max(room, 0):.0f} EUR{capped})"
     return qty, None
 
 

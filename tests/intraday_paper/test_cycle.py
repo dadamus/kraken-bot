@@ -10,7 +10,7 @@ from intraday import cycle, engine, journal, model, panel, report
 
 
 def fake_markets(prices, daily):
-    def load(pairs, offline_mode, crypto=None):
+    def load(pairs, offline_mode, crypto=None, cfg=None):
         markets = {p: {"price_now": prices[p], "atr14_pct": 3.0} for p in pairs}
         return markets, dict(prices), {p: daily for p in pairs}
     return load

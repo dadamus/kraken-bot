@@ -229,7 +229,7 @@ def daily_cycle(cfg, state, offline_mode=False, now=None, ask=None, hours=None):
     pairs = cfg["pairs"]
     print(f"=== intraday paper {now:%Y-%m-%d %H:%M}: {', '.join(pairs)}{' (OFFLINE)' if offline_mode else ''} ===")
     crypto = [pair for pair in pairs if account.is_crypto(cfg, pair)]
-    markets, prices, closed_all = cfd_cycle.load_markets(pairs, offline_mode, crypto)
+    markets, prices, closed_all = cfd_cycle.load_markets(pairs, offline_mode, crypto, cfg)
     if not offline_mode and "EURUSD" not in prices and any(account.instrument(cfg, p)["quote"] == "USD" for p in pairs):
         prices["EURUSD"] = market.fetch_price("EURUSD")  # to value USD-quoted pairs in EUR
     for pair in pairs:

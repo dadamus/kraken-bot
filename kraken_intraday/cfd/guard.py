@@ -86,6 +86,9 @@ def check(cfg, state, prices, now=None, fetch=fetch_candles):
             except Exception as e:  # without candles the current price still protects the position
                 print(f"  [{pair}] candles for the stop check unavailable: {e}")
         # a candle that ended before the position opened or before the last check is not looked at again
+        # a spike wick of a thin Kraken book would fire a stop no broker would (account.clean_candles); the
+        # median range comes from the whole fetched batch, before the already seen candles are dropped
+        candles = account.clean_candles(cfg, pair, candles)
         candles = [c for c in candles if c["t"] + interval * 60 > since]
         if pair in prices:
             p = prices[pair]

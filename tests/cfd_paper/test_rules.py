@@ -102,6 +102,55 @@ def test_size_respects_the_total_margin_and_the_minimum(ccfg, cstate):
     assert qty == 0 and "min_trade_eur" in why
 
 
+def test_open_risk_counts_stops_and_ignores_break_even(ccfg, cstate):
+    account.open_position(ccfg, cstate, "XBTEUR", "long", 0.01, 50000, 49000, 54000, NOW)
+    account.open_position(ccfg, cstate, "ETHEUR", "short", 1.0, 2000, 2100, 1800, NOW)
+    cstate["positions"]["ETHEUR"]["stop"] = cstate["positions"]["ETHEUR"]["entry"]  # moved to break-even
+    entry = cstate["positions"]["XBTEUR"]["entry"]
+    assert risk.open_risk(ccfg, cstate, PRICES) == pytest.approx((entry - 49000) * 0.01)
+    assert cycle.account_view(ccfg, cstate, PRICES, NOW)["open_risk_eur"] == pytest.approx((entry - 49000) * 0.01, abs=0.01)
+
+
+def test_size_shares_the_open_risk_budget(ccfg, cstate):
+    ccfg["risk"]["max_open_risk_pct"] = 2.5
+    account.open_position(ccfg, cstate, "XBTEUR", "long", 0.01, 50000, 49000, 54000, NOW)  # ~10 EUR at risk
+    eq = account.equity(ccfg, cstate, PRICES)
+    left = eq * 0.025 - risk.open_risk(ccfg, cstate, PRICES)
+    qty, why = risk.size(ccfg, cstate, PRICES, "SOLEUR", 100.0, 5.0)
+    assert why is None and qty == pytest.approx(left / 5.0)  # less than 1.5 % of equity / 5
+    ccfg["risk"]["max_open_risk_pct"] = 1.0  # the budget is used up
+    qty, why = risk.size(ccfg, cstate, PRICES, "SOLEUR", 100.0, 5.0)
+    assert qty == 0 and "max_open_risk_pct" in why
+    ccfg["risk"]["max_open_risk_pct"] = None  # off
+    assert risk.size(ccfg, cstate, PRICES, "SOLEUR", 100.0, 5.0)[0] > 2.9
+
+
+def test_spike_wicks_are_cut_for_currencies_only(ccfg):
+    ccfg["instruments"]["EURUSD"]["asset_class"] = "currency"
+    candles = [{"t": i, "o": 1.10, "h": 1.105, "l": 1.095, "c": 1.10} for i in range(10)]
+    candles[5] = {"t": 5, "o": 1.10, "h": 1.19, "l": 1.09, "c": 1.101}  # an 18-range spike up
+    clean = account.clean_candles(ccfg, "EURUSD", candles)
+    assert clean[5]["h"] == pytest.approx(1.101 + 5 * 0.01) and clean[5]["l"] == 1.09  # a normal wick stays
+    assert clean[0] == candles[0]
+    assert account.clean_candles(ccfg, "XBTEUR", candles) is candles  # crypto: off
+    assert account.clean_candles(ccfg, "PAXGEUR", candles) is candles  # gold: off
+    ccfg["instruments"]["EURUSD"]["max_wick"] = 0
+    assert account.clean_candles(ccfg, "EURUSD", candles) is candles
+
+
+def test_a_spike_wick_does_not_fire_the_stop(ccfg, cstate):
+    from cfd import guard
+    ccfg["pairs"] = ["EURUSD"]
+    cstate = account.new_state(ccfg, NOW)
+    prices = {"EURUSD": 1.10}
+    account.open_position(ccfg, cstate, "EURUSD", "short", 1000, 1.10, 1.11, 1.08, NOW, prices)
+    t0 = int(NOW.timestamp())
+    candles = [{"t": t0 + 60 * i, "o": 1.10, "h": 1.1003, "l": 1.0997, "c": 1.10} for i in range(1, 9)]
+    candles[4] = {**candles[4], "h": 1.1859}  # a thin-book spike through the stop
+    rows = guard.check(ccfg, cstate, prices, NOW.replace(minute=10), fetch=lambda p, s, n: (candles, 1))
+    assert rows == [] and "EURUSD" in cstate["positions"]
+
+
 # --- decisions ----------------------------------------------------------------------------------------
 
 def test_low_confidence_does_not_open(ccfg, cstate):

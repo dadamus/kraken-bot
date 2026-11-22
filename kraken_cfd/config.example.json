@@ -22,6 +22,7 @@
   "risk": {
     "min_confidence": 0.65,
     "risk_per_trade_pct": 1.5,
+    "max_open_risk_pct": 6,
     "max_margin_per_trade_pct": 25,
     "max_margin_pct": 60,
     "min_trade_eur": 20,

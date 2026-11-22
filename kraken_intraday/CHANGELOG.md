@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1
+- From the CFD paper 0.5.0 copy: spike wicks of Kraken's thin EUR/USD book are cut in the daily candles
+  (the regime rule, the daily trend, the model's view) and in the candles of the stop check, so a spike no
+  broker shows no longer fires a stop. The hourly candles of the strategies are left as they are. The CFD
+  paper's shared risk budget is off here (no `max_open_risk_pct` in the intraday config).
+
 ## 0.2.0
 - No reversion long in a daily downtrend (both books): when the last daily close is below the 50-day SMA and
   that SMA is lower than 10 days before, the range regime only fades rallies with shorts. In the first two

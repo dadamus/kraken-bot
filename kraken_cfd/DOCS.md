@@ -30,6 +30,7 @@ and a take-profit. Code decides:
 |---|---|---|
 | `risk.min_confidence` | 0.65 | needed to open; closing never needs it |
 | `risk.risk_per_trade_pct` | 1.5 | the size loses this share of equity at the stop |
+| `risk.max_open_risk_pct` | 6 | all open positions together may lose at most this share of equity at their stops (a stop at break-even counts 0); a new position gets only what is left, or is not opened. `null` = off |
 | `risk.min_stop_atr` / `max_stop_pct` / `default_stop_atr` | 1 / 10 / 2 | where the stop may be (the model's, kept in this band) |
 | `risk.event_stop_atr` / `event_window_hours` | 2 / 48 | minimum stop in ATRs while a high-impact US release (CPI, FOMC, payrolls) is this close; also for a stop the model moves closer. The size shrinks, the risk in EUR stays. `event_window_hours: 0` = off |
 | `risk.default_reward_risk` | 2 | take-profit when the model gives none or one closer than the stop |
@@ -80,7 +81,7 @@ gold, 0.00012 on EUR/USD). Leverage is the EU retail limit. Brokers change these
 In `config.json` each instrument has an entry in `instruments`: `name`, `asset_class` (`crypto` gets the
 crypto-only context and `vs_btc`), `quote` (`EUR` or `USD`; USD prices are converted with EUR/USD),
 `leverage`, `spread_pct`, `swap_pct_per_day` and, for markets with a weekend break, `weekend_close` /
-`weekend_open` (e.g. `"fri 22:00"`). Anything missing falls back to the top-level `leverage`, `spread_pct`
+`weekend_open` (e.g. `"fri 22:00"`), and `max_wick`: a wick longer than this many median candle ranges is cut before the indicators and the stop check (Kraken's EUR/USD book is thin and shows spikes no broker does; default 5 for currencies, 0 = off for gold and crypto). Anything missing falls back to the top-level `leverage`, `spread_pct`
 and `swap_pct_per_day`. While a market is closed no order is placed and no stop fires; a stop beyond the
 first price after the reopen fills at that price (a gap). The overnight swap is charged per calendar day,
 which over a week equals the broker's triple Wednesday or Friday charge.

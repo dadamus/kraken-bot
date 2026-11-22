@@ -18,9 +18,15 @@ Costs and mechanics (trading_terms has the exact numbers):
   that. The edge has to be larger than the carry,
 - leverage differs per instrument and magnifies gains and losses. The code sizes every position so that
   hitting the stop loses about risk_per_trade_pct of equity whatever the instrument, and closes positions
-  when equity falls below stop_out_margin_level_pct of the margin,
+  when equity falls below stop_out_margin_level_pct of the margin. All open positions together may risk at
+  most max_open_risk_pct of equity (account.open_risk_eur: what their stops would lose; a stop at break-even
+  risks nothing); a new position gets only what is left, so several calls on one theme (e.g. a strong
+  dollar) share one risk budget,
 - an instrument with trading hours (gold, currencies) cannot be traded while its market is closed
   (market_open_now false); a position kept over the weekend can open the next week with a gap through the stop.
+  The gold price comes from PAXG, a token that also trades while the gold market is closed: weekend candles
+  are thin crypto trading, not gold. Do not read a weekend low or high as a gold level (e.g. a new yearly
+  low); judge gold by its weekday prices.
 The instruments move very differently: the daily range (atr14_pct) of a currency pair is a fraction of a
 cryptocurrency's. Judge every move against its own instrument's ATR, not in absolute percent.
 Shorting crypto deserves extra care: it has a long-term upward drift and violent short squeezes. A short
