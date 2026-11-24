@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.15-slim
 # slim (glibc) rather than alpine: the Anthropic SDK ships prebuilt wheels only for glibc
 RUN apt-get update && apt-get install -y --no-install-recommends tzdata \
     && rm -rf /var/lib/apt/lists/*
