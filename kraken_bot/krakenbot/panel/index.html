@@ -144,12 +144,13 @@ const T = {
     call: "ocena", count: "ile", after1: "po 1 d", after3: "po 3 d", after7: "po 7 d", higher3: "wyżej po 3 d",
     forecasts: "Prognozy „szansa wzrostu w 3 dni”", hit: "trafność kierunku", hitShort: "trafność", settled: "rozliczonych",
     nothingYet: "jeszcze nic do rozliczenia - pierwsze wyniki 3 dni po pierwszej prognozie.", stops: "Sprzedaże ze stopu",
+    baseRate: "Cena rosła w {up}% przypadków - stała prognoza równa tej częstości dałaby Brier {b}.",
     stopsNote: "niżej = stop uratował pieniądze, wyżej = sprzedał za wcześnie", soldAt: "sprzedano po", average: "średnio",
     cycles: "Cykle codzienne i dodatkowe", daily: "codzienne", extra: "dodatkowe", trades: "transakcji",
     noise: "Mniej niż 30 rozliczonych prognoz - na razie to głównie szum. Sensowne wnioski po ok. 1-2 miesiącach.",
     log: "Dziennik decyzji", all: "wszystko", onlyTrades: "transakcje", onlyStops: "stopy", when: "kiedy", pair: "para",
     done: "wykonano", rule: "reguła", footer: "Panel tylko do odczytu · eksperyment, nie porada inwestycyjna",
-    nasdaq100: "Nasdaq 100", sp500: "S&P 500", vix: "VIX", us10y_yield_pct: "Rentowność 10-latek USA", usd_index_broad: "Indeks dolara",
+    nasdaq100: "Nasdaq 100", sp500: "S&P 500", vix: "VIX", us10y_yield_pct: "Rentowność 10-latek USA", usd_index_dxy: "Indeks dolara (DXY)", usd_index_broad: "Indeks dolara (szeroki)",
     premium: "Premia Coinbase (24 h)", dominance: "Dominacja BTC", stable: "Udział stablecoinów", funding: "Funding {p} (8 h)",
     ctxDate: "stan z cyklu", noCtx: "Kontekst rynku pojawi się po najbliższym cyklu modelu.", benchmark: "kup i trzymaj",
     trend: "trend", noPos: "brak pozycji", value: "wartość", toStop: "do stopu", lastCall: "ostatnia ocena",
@@ -172,12 +173,13 @@ const T = {
     call: "call", count: "count", after1: "after 1 d", after3: "after 3 d", after7: "after 7 d", higher3: "higher after 3 d",
     forecasts: "\"Chance of a rise in 3 days\" forecasts", hit: "direction hit rate", hitShort: "hit rate", settled: "settled",
     nothingYet: "nothing to settle yet - first results 3 days after the first forecast.", stops: "Stop sales",
+    baseRate: "The price rose in {up}% of cases - always forecasting that share would score Brier {b}.",
     stopsNote: "lower = the stop saved money, higher = it sold too early", soldAt: "sold at", average: "average",
     cycles: "Daily and extra cycles", daily: "daily", extra: "extra", trades: "trades",
     noise: "Fewer than 30 settled forecasts - mostly noise so far. Meaningful conclusions after about 1-2 months.",
     log: "Decision log", all: "all", onlyTrades: "trades", onlyStops: "stops", when: "when", pair: "pair",
     done: "executed", rule: "rule", footer: "Read-only panel · an experiment, not investment advice",
-    nasdaq100: "Nasdaq 100", sp500: "S&P 500", vix: "VIX", us10y_yield_pct: "US 10-year yield", usd_index_broad: "Dollar index",
+    nasdaq100: "Nasdaq 100", sp500: "S&P 500", vix: "VIX", us10y_yield_pct: "US 10-year yield", usd_index_dxy: "Dollar index (DXY)", usd_index_broad: "Dollar index (broad)",
     premium: "Coinbase premium (24 h)", dominance: "BTC dominance", stable: "Stablecoin share", funding: "Funding {p} (8 h)",
     ctxDate: "as of the cycle", noCtx: "Market context appears after the next model cycle.", benchmark: "buy and hold",
     trend: "trend", noPos: "no position", value: "value", toStop: "to stop", lastCall: "latest call",
@@ -381,7 +383,7 @@ function decisionCard() {
 function marketCard() {
   const c = D.context || {}, mo = c.market_overview || D.market_overview, us = c.us_markets || {};
   const items = [];
-  for (const k of ["nasdaq100", "sp500", "vix", "us10y_yield_pct", "usd_index_broad"]) {
+  for (const k of ["nasdaq100", "sp500", "vix", "us10y_yield_pct", "usd_index_dxy", "usd_index_broad"]) {
     const v = us[k]; if (!v) continue;
     const chg = v.change_1d_pct !== undefined ? pct(v.change_1d_pct) : isNum(v.change_1d_points) ? `<span class="num ${v.change_1d_points > 0 ? "down" : "up"}">${v.change_1d_points > 0 ? "+" : ""}${fmt(v.change_1d_points)} pt</span>` : "–";
     items.push([L[k], `<span class="num">${fmt(v.last, v.last > 1000 ? 0 : 2)}</span> ${chg}`]);
@@ -436,7 +438,8 @@ function perfCard() {
         <div class="item"><span class="muted">📈 ${L.trend} (${esc(sh.trend_rule)})</span><span>${pct(sh.trend_pct)}</span></div></div>` : ""}
       <div class="small muted" style="font-weight:600;margin-bottom:6px">${L.callsAfter}</div>
       <div class="scroll"><table><tr><th>${L.call}</th><th class="r">${L.count}</th><th class="r">${L.after1}</th><th class="r">${L.after3}</th><th class="r">${L.after7}</th><th class="r">${L.higher3}</th></tr>${actions}</table></div>
-      <div style="margin-top:12px"><b>${L.forecasts}:</b> ${c.settled ? `${L.hit} <b>${fmt(c.hit_rate_pct, 0)}%</b>, Brier <b>${fmt(c.brier, 3)}</b>, ${L.settled} ${c.settled}.` : L.nothingYet}</div>
+      <div style="margin-top:12px"><b>${L.forecasts}:</b> ${c.settled ? `${L.hit} <b>${fmt(c.hit_rate_pct, 0)}%</b>, Brier <b>${fmt(c.brier, 3)}</b>, ${L.settled} ${c.settled}.` : L.nothingYet}
+        ${c.settled && c.brier_base_rate > 0 ? L.baseRate.replace("{up}", fmt(c.up_rate_pct, 0)).replace("{b}", `<b>${fmt(c.brier_base_rate, 3)}</b>`) : ""}</div>
       ${(c.settled || 0) < 30 ? `<div class="note">${L.noise}</div>` : ""}
     </div><div>${stops}${cycles}</div></div></div>`;
 }

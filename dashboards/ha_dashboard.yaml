@@ -493,6 +493,7 @@ views:
               **"Chance of a rise in 3 days" forecasts:**
               {%- if c.settled %}
               direction hit rate **{{ '%.0f' | format(c.hit_rate_pct or 0) }}%**, Brier **{{ c.brier }}** (0.25 = coin flip, lower = better), settled {{ c.settled }}.
+              {%- if c.brier_base_rate %} The price rose in {{ '%.0f' | format(c.up_rate_pct) }}% of cases - always forecasting that share would score Brier **{{ c.brier_base_rate }}**.{% endif %}
               {%- else %}
               nothing to settle yet - first results 3 days after the first forecast.
               {%- endif %}

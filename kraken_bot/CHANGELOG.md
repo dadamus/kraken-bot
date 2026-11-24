@@ -1,5 +1,26 @@
 # Changelog
 
+## 2.11.3
+- Fresher US market data for the model: Nasdaq 100, S&P 500, VIX, the 10-year yield and the dollar index now
+  come from Yahoo Finance's chart API (no key), FRED is only the fallback. FRED publishes its closes a day or
+  more later: at the morning cycle of Tuesday 2026-11-24 its latest Nasdaq 100 close was Thursday's (-2.2 %),
+  so the model saw neither Friday's -5.6 % nor Monday's +6.9 %, and Friday's VIX of 35.9 instead of Monday's
+  26.6. Every series has `date` and `as_of_utc` (the time of its latest price; while a market is open the
+  1-day change is the move so far). The dollar is now DXY (`usd_index_dxy`); when Yahoo fails, FRED's broad
+  trade-weighted index comes as `usd_index_broad`, marked `source: "FRED"` like every fallback series.
+- A fresh live buy no longer gets the manual entry price. Right after a market buy Kraken's trade history may
+  not show it yet; its coins then looked like coins from outside the history and got the `entry_prices`
+  option's price. With BTC at 65 617 there (coins sold on 2026-11-05) and the market at 55 000, the -8 %
+  stop-loss from that price would have sold the new position on the next refresh, and no stop order was
+  placed on Kraken. The bot now remembers its order (`pending_buy`) until the trade shows up in the history
+  (at most 30 minutes) and until then takes the entry price from the history only.
+- Forecasts are also scored against the base rate: next to the Brier against a coin flip (0.25) the
+  evaluation shows how often the price actually rose (`up_rate_pct`) and the Brier of always forecasting that
+  share (`brier_base_rate`, `skill_vs_base_rate_pct`) - in `--report`, the panel, Home Assistant, the
+  dashboards in `dashboards/` and the model's own track record. Live until 2026-11-24: Brier 0.2264, 9 %
+  better than a coin flip, but the price rose in only 21.6 % of the cases and always saying so would have
+  scored 0.1695 (the model 34 % worse); its forecasts of 0.42 and 0.47 came true equally often.
+
 ## 2.11.2
 - Panel: the price line on the pair charts runs on to the current price. Before, it ended at the last
   closed day, so a big move today (e.g. after a US release) was missing from the chart.

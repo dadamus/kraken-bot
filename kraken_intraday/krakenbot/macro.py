@@ -1,16 +1,23 @@
-"""Context from outside crypto (no keys): US markets and rates (FRED), the week's macro calendar
-(ForexFactory feed) and the Coinbase premium (US spot demand). Each goes through market.optional()."""
+"""Context from outside crypto (no keys): US markets and rates (Yahoo Finance, FRED as the fallback), the
+week's macro calendar (ForexFactory feed) and the Coinbase premium (US spot demand). Each goes through
+market.optional()."""
 import csv
 import io
+import urllib.parse
 from datetime import datetime, timedelta, timezone
 
 import requests
 
 from . import config, market
 
-# FRED series: daily closes, published with a lag of a day (the dollar index about a week)
-FRED_SERIES = {"nasdaq100": "NASDAQ100", "sp500": "SP500", "vix": "VIXCLS",
-               "us10y_yield_pct": "DGS10", "usd_index_broad": "DTWEXBGS"}
+# name: (Yahoo Finance symbol, FRED series). Yahoo has the latest session: the stock indices' close of the day
+# before at the morning cycle, the day so far while a market is open (VIX and the dollar index trade almost
+# around the clock). FRED publishes its closes a day or more later - at a Tuesday morning cycle its latest
+# Nasdaq 100 close was from Thursday - so it is only the fallback when Yahoo fails.
+US_SERIES = {"nasdaq100": ("^NDX", "NASDAQ100"), "sp500": ("^GSPC", "SP500"), "vix": ("^VIX", "VIXCLS"),
+             "us10y_yield_pct": ("^TNX", "DGS10"), "usd_index_dxy": ("DX-Y.NYB", "DTWEXBGS")}
+# FRED has no DXY, only the broad trade-weighted dollar index: a different index, so it keeps its own name
+FRED_NAMES = {"usd_index_dxy": "usd_index_broad"}
 LEVELS = {"vix", "us10y_yield_pct"}  # changes in points, not percent
 
 
@@ -44,14 +51,43 @@ def fetch_fred(series_id, days=60):
     return rows
 
 
+def fetch_yahoo(symbol):
+    """Daily closes from Yahoo Finance's chart API: ([(session date, close)] oldest first, unix time of the
+    latest price). While the market is open the last row is the current session, its close the latest price."""
+    r = requests.get(f"{config.YAHOO_CHART}/{urllib.parse.quote(symbol, safe='')}",
+                     params={"range": "3mo", "interval": "1d"}, headers=config.UA, timeout=20)
+    r.raise_for_status()
+    res = r.json()["chart"]["result"][0]
+    offset = res["meta"].get("gmtoffset") or 0  # the session date in the exchange's own time zone
+    closes = res["indicators"]["quote"][0].get("close") or []
+    by_date = {}
+    for ts, close in zip(res.get("timestamp") or [], closes):
+        if close is not None:  # a day without a close
+            by_date[datetime.fromtimestamp(ts + offset, timezone.utc).strftime("%Y-%m-%d")] = float(f"{close:.6g}")
+    return sorted(by_date.items()), res["meta"].get("regularMarketTime")
+
+
+def yahoo_summary(symbol, level=False):
+    rows, as_of = fetch_yahoo(symbol)
+    summary = series_summary(rows, level)
+    if summary and as_of:
+        summary["as_of_utc"] = datetime.fromtimestamp(as_of, timezone.utc).strftime("%Y-%m-%d %H:%M")
+    return summary
+
+
 def fetch_us_markets():
-    """Nasdaq 100, S&P 500, VIX, 10-year yield and the broad dollar index: BTC trades with risk assets."""
+    """Nasdaq 100, S&P 500, VIX, the 10-year yield and the dollar index: BTC trades with risk assets, gold and
+    EUR/USD with yields and the dollar. Per series from Yahoo, or from FRED when Yahoo fails (source "FRED")."""
     out = {}
-    for name, series_id in FRED_SERIES.items():
-        summary = market.optional(f"FRED {series_id}", lambda s=series_id, n=name:
-                                  series_summary(fetch_fred(s), n in LEVELS))
+    for name, (symbol, series_id) in US_SERIES.items():
+        level = name in LEVELS
+        summary = market.optional(f"Yahoo {symbol}", yahoo_summary, symbol, level)
         if summary:
             out[name] = summary
+            continue
+        summary = market.optional(f"FRED {series_id}", lambda s=series_id, lv=level: series_summary(fetch_fred(s), lv))
+        if summary:
+            out[FRED_NAMES.get(name, name)] = {**summary, "source": "FRED"}
     return out or None
 
 

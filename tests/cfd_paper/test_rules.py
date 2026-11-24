@@ -283,7 +283,24 @@ def test_calls_are_settled_three_days_later(ccfg):
     assert out["by_action"]["short"] == {"n": 1, "avg_move_pct": -6.0, "avg_move_in_direction_pct": 6.0,
                                          "hit_rate_pct": 100.0}
     assert out["by_action"]["long"]["hit_rate_pct"] == 0.0  # the 2026-11-05 call is not 3 days old yet
-    assert out["p_up_3d"] == {"n": 2, "brier": round((0.3 ** 2 + 0.6 ** 2) / 2, 4), "hit_rate_pct": 50.0}
+    # both settled calls fell: always forecasting "no rise" (the base rate, 0 %) would have been perfect
+    assert out["p_up_3d"] == {"n": 2, "brier": round((0.3 ** 2 + 0.6 ** 2) / 2, 4), "hit_rate_pct": 50.0,
+                              "up_rate_pct": 0.0, "brier_base_rate": 0.0}
+
+
+def test_the_base_rate_is_reported_next_to_the_brier():
+    day = int(datetime(2026, 11, 1).timestamp())
+    closes = [100, 95, 90, 80, 100, 96, 92]  # day 0 -> 3 and day 3 -> 6 rise, day 1 -> 4 too, 2 -> 5 falls...
+    candles = [{"t": day + i * 86400, "o": c, "h": c, "l": c, "c": c, "v": 1} for i, c in enumerate(closes)]
+    calls = [{"date": f"2026-11-0{1 + i} 08:00", "pair": "XBTEUR", "price": str(closes[i]), "action": "short",
+              "p_up_3d": "0.4"} for i in range(4)]
+    p = report.settle_calls(calls, {"XBTEUR": candles})["p_up_3d"]
+    ups = sum(closes[i + 3] > closes[i] for i in range(4))
+    assert p["n"] == 4 and p["up_rate_pct"] == ups / 4 * 100
+    assert p["brier_base_rate"] == round(ups / 4 * (1 - ups / 4), 4)
+    text = report.report_text({"evaluation": {"date": "2026-11-08 08:00", "equity_eur": 1000.0, "return_pct": 0.0,
+                                              "trades": report.trade_stats([]), "calls": {"by_action": {}, "p_up_3d": p}}})
+    assert f"the price rose in {p['up_rate_pct']}% of them" in text
 
 
 def test_trade_stats_split_by_side():

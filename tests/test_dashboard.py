@@ -91,6 +91,19 @@ def test_dashboard_renders_with_data(path):
 
 
 @pytest.mark.parametrize("path", EXPECTED)
+def test_dashboard_shows_the_base_rate_next_to_the_brier(path):
+    perf = dict(FULL["sensor.kraken_bot_performance"][1])
+    states = {**FULL, "sensor.kraken_bot_performance": ("72.0", perf)}
+    perf["p_up_3d"] = {"settled": 111, "brier": 0.2264, "hit_rate_pct": 72.0, "buckets": [],
+                       "up_rate_pct": 21.6, "brier_base_rate": 0.1694}
+    stats = render_cards(path, states)[2]
+    assert "22%" in stats and "**0.1694**" in stats
+    perf["p_up_3d"] = {"settled": 111, "brier": 0.2264, "hit_rate_pct": 72.0, "buckets": []}  # an older state
+    stats = render_cards(path, states)[2]
+    assert "0.2264" in stats and "None" not in stats
+
+
+@pytest.mark.parametrize("path", EXPECTED)
 def test_dashboard_renders_before_first_cycle(path):
     """A fresh Home Assistant: no entities yet - the cards must render, not crash."""
     _, _, no_decision, no_data = EXPECTED[path]

@@ -1,4 +1,5 @@
 """The decision log, context for the model and talking to Kraken (no network - everything is faked)."""
+import copy
 import csv
 import json
 import time
@@ -6,8 +7,8 @@ from datetime import datetime
 
 import pytest
 
-from krakenbot import claude, config, journal, kraken, portfolio
-from conftest import log_row, make_state
+from krakenbot import claude, cli, config, journal, kraken, portfolio, risk
+from conftest import log_row, make_state, signal
 
 
 # ---------------------------------------------------------------- log
@@ -137,8 +138,8 @@ def fake_kraken(monkeypatch):
         if path.endswith("AddOrder"):
             if k.get("reject"):
                 raise RuntimeError("Kraken: EOrder:Insufficient funds")
-            k["orders"].append(data)
-            return {"descr": {"order": "ok"}}
+            k["orders"].append(data)  # a placed order gets a txid, a validated one does not
+            return {"descr": {"order": "ok"}, **({} if data.get("validate") else {"txid": [f"O{len(k['orders'])}"]})}
         raise AssertionError(path)
 
     monkeypatch.setattr(kraken, "kraken_private", private)
@@ -225,6 +226,66 @@ def test_sync_ignores_implausible_manual_price(cfg, fake_kraken, monkeypatch):
     assert state["positions"]["XBTEUR"]["entry_price"] is None
 
 
+def live_state(**positions):
+    """A live state after its first sync (the reference point and the ledger check are set)."""
+    state = make_state(**positions)
+    state.update(synced_at="2026-11-24 07:05", ledger_checked=time.time(),
+                 hold_start={"since": "2026-11-05 11:35", "eur": 108.5, "coins": {"XBTEUR": 0.00322323}})
+    return state
+
+
+def test_own_buy_not_in_the_history_yet_does_not_get_the_manual_price(cfg, fake_kraken):
+    """The coins with the manual entry price (65 617) were sold on 11-05. Right after a new buy Kraken's trade
+    history may not show it yet, so the new coins look like outside coins: valued at 65 617, the -8 % stop-loss
+    (60 368) would sell them at once at 55 353."""
+    cfg["pairs"], cfg["entry_prices"] = ["XBTEUR"], {"XBTEUR": 65617}
+    fake_kraken["trades"] = [dict(trade("sell", 0.00322323, 217.31, 0.87, t=1), ordertxid="OOLD")]
+    fake_kraken["balance"] = {"ZEUR": "136.6", "XXBT": "0.0036"}
+    state = live_state(XBTEUR={"coin": 0.0036, "stop_price": 51000.0,
+                               "pending_buy": {"txid": "ONEW", "at": time.time()}})
+    kraken.sync_live(cfg, state, {"XBTEUR": 55353.0})
+    pos = state["positions"]["XBTEUR"]
+    assert pos["entry_price"] is None and pos["pending_buy"]["txid"] == "ONEW"
+    assert pos["stop_price"] == 51000.0  # the model's stop still protects the position
+    assert risk.protective_exit(cfg, pos, 55353.0) is None  # no stop-loss from the manual price
+
+    fake_kraken["trades"].append(dict(trade("buy", 0.0036, 199.27, 0.8, t=2), ordertxid="ONEW"))
+    kraken.sync_live(cfg, state, {"XBTEUR": 55353.0})
+    pos = state["positions"]["XBTEUR"]
+    assert pos["entry_price"] == pytest.approx((199.27 + 0.8) / 0.0036) and "pending_buy" not in pos
+
+
+def test_a_buy_never_seen_in_the_history_stops_being_pending(cfg, fake_kraken):
+    cfg["pairs"], cfg["entry_prices"] = ["XBTEUR"], {"XBTEUR": 60000}
+    gone = {"txid": "OGONE", "at": time.time() - 2 * kraken.PENDING_BUY_MAX_S}
+    state = live_state(XBTEUR={"coin": 0.01, "pending_buy": gone})
+    kraken.sync_live(cfg, state, {"XBTEUR": 70000.0})
+    pos = state["positions"]["XBTEUR"]
+    assert "pending_buy" not in pos and pos["entry_price"] == 60000  # back to the manual price
+
+
+def test_live_buy_remembers_its_order_for_the_sync(cfg, monkeypatch):
+    prices = {"XBTEUR": 55000.0, "ETHEUR": 1500.0, "SOLEUR": 65.0}
+    markets = {pair: {"atr14": price * 0.05} for pair, price in prices.items()}
+    signals = {"XBTEUR": signal("buy", 0.8, 50), "ETHEUR": signal(), "SOLEUR": signal()}
+    info = {pair: INFO for pair in prices}
+    state = make_state(eur=500.0, start_eur=500.0)
+
+    cfg["live_validate_only"] = False
+    monkeypatch.setattr(kraken, "live_execute", lambda cfg, info, order, price: "OTX1")
+    book = copy.deepcopy(state)
+    rows = cli.execute_signals(cfg, state, book, markets, prices, signals, True, info, "live")
+    assert [r["executed"] for r in rows if r["pair"] == "XBTEUR"] == ["buy"]
+    assert book["positions"]["XBTEUR"]["pending_buy"]["txid"] == "OTX1"
+    assert "pending_buy" not in book["positions"]["ETHEUR"]
+
+    cfg["live_validate_only"] = True  # Kraken only checks the order: nothing to wait for
+    monkeypatch.setattr(kraken, "live_execute", lambda cfg, info, order, price: True)
+    book = copy.deepcopy(state)
+    cli.execute_signals(cfg, state, book, markets, prices, signals, True, info, "live")
+    assert "pending_buy" not in book["positions"]["XBTEUR"]
+
+
 def test_addon_entry_prices_override_config(cfg, monkeypatch):
     cfg["entry_prices"] = {"XBTEUR": 60000, "ETHEUR": 2000}
     monkeypatch.setenv("BOT_ENTRY_PRICES", json.dumps({"xbteur": 65617}))
@@ -238,7 +299,7 @@ def test_live_order_volume_and_validation(cfg, fake_kraken):
     assert order["validate"] == "true" and order["ordertype"] == "market"
 
     cfg["live_validate_only"] = False
-    kraken.live_execute(cfg, INFO, {"side": "sell", "coin": 0.0123456789}, 70000.0)
+    assert kraken.live_execute(cfg, INFO, {"side": "sell", "coin": 0.0123456789}, 70000.0) == "O2"  # the txid
     assert fake_kraken["orders"][1]["volume"] == "0.01234567" and "validate" not in fake_kraken["orders"][1]
 
 

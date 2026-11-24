@@ -133,6 +133,8 @@ def daily_cycle(cfg, state, live, offline_mode, mode, trigger=None):
             for pair in pairs:  # stops set in this cycle only live in the working copy
                 for key in ("stop_price", "exchange_stop"):
                     state["positions"][pair][key] = book["positions"][pair].get(key)
+                if book["positions"][pair].get("pending_buy"):  # a buy sent in this cycle (kraken.sync_live)
+                    state["positions"][pair]["pending_buy"] = book["positions"][pair]["pending_buy"]
             kraken.sync_live(cfg, state, prices)
             book = state
             rows += exchange_stops.sync(cfg, state, pair_info, prices, live)
@@ -202,7 +204,7 @@ def load_context(pairs, state, prices, candles, closed_all, offline_mode):
         context["fear_greed"] = market.optional("fear&greed", market.fetch_fear_greed)
         context["market_overview"] = market.optional("coingecko", market.fetch_market_overview, state)
         context["implied_vol"] = market.optional("deribit", market.fetch_implied_vol, pairs, closed_all)
-        context["us_markets"] = market.optional("FRED", macro.fetch_us_markets)
+        context["us_markets"] = market.optional("US markets", macro.fetch_us_markets)
         context["macro_calendar"] = market.optional("calendar", macro.fetch_macro_calendar, state)
         context["coinbase_premium"] = market.optional("coinbase", macro.fetch_coinbase_premium)
     if context.get("market_overview"):
@@ -282,12 +284,15 @@ def execute_signals(cfg, state, book, markets, prices, signals, live, pair_info,
         if order["side"] in ("buy", "sell"):
             if order["side"] == "sell":
                 exchange_stops.cancel_for_sale(cfg, live, book["positions"][pair])
-            if live and not kraken.live_execute(cfg, pair_info[pair], order, price):
+            sent = kraken.live_execute(cfg, pair_info[pair], order, price) if live else True
+            if not sent:
                 order = {"side": "error", "why": t("why_order_failed", why=order["why"])}
             else:
                 if live and cfg.get("live_validate_only", True):
                     order["why"] += t("why_validate_buy" if order["side"] == "buy" else "why_validate_sell")
                 fill, qty = portfolio.paper_execute(cfg, book, pair, order, price)
+                if order["side"] == "buy" and isinstance(sent, str):  # a real order: its txid, see kraken.sync_live
+                    book["positions"][pair]["pending_buy"] = {"txid": sent, "at": time.time()}
                 print(t("fill_line", mode=mode, side=order["side"], qty=qty, fill=fill))
         rows.append({"date": now_s, "pair": pair, "price": round(price, 6),
                      "model_action": sig["action"], "confidence": sig["confidence"],

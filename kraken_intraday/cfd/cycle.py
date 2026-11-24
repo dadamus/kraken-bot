@@ -101,7 +101,7 @@ def load_context(pairs, state, closed_all):
             "fear_greed": market.optional("fear&greed", market.fetch_fear_greed),
             "market_overview": market.optional("coingecko", market.fetch_market_overview, state),
             "implied_vol": market.optional("deribit", market.fetch_implied_vol, pairs, closed_all),
-            "us_markets": market.optional("FRED", macro.fetch_us_markets),
+            "us_markets": market.optional("US markets", macro.fetch_us_markets),
             "macro_calendar": market.optional("calendar", macro.fetch_macro_calendar, state),
             "coinbase_premium": market.optional("coinbase", macro.fetch_coinbase_premium)}
 

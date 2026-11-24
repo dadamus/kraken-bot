@@ -58,9 +58,18 @@ def cycle_kind(r):
 
 
 def calibration(probs):
+    """Brier score of the p_up_3d forecasts against two references: a coin flip (0.25, brier_skill_pct) and the
+    base rate - always forecasting the share of rises seen over the same calls (up_rate_pct, known only
+    afterwards; its Brier is rate x (1 - rate)). In a strong trend the base rate is far from 0.5, so forecasts
+    can beat a coin flip and still be worse than that constant (skill_vs_base_rate_pct below 0)."""
     brier = mean((p - up) ** 2 for p, up in probs)
+    rate = mean(1.0 * up for _, up in probs)
+    base = rate * (1 - rate) if rate is not None else None
     return {"settled": len(probs), "brier": rnd(brier, 4),
             "brier_skill_pct": rnd((1 - brier / 0.25) * 100, 1) if brier is not None else None,
+            "up_rate_pct": rnd(rate * 100, 1) if rate is not None else None,
+            "brier_base_rate": rnd(base, 4),
+            "skill_vs_base_rate_pct": rnd((1 - brier / base) * 100, 1) if base else None,
             "hit_rate_pct": rnd(mean(100.0 * ((p > 0.5) == up) for p, up in probs if p != 0.5), 1)}
 
 
@@ -201,6 +210,9 @@ def evaluation_lines(ev):
     if c["settled"]:
         hit = "-" if c["hit_rate_pct"] is None else f"{c['hit_rate_pct']:.0f}%"
         out.append(t("ev_calibration", n=c["settled"], hit=hit, brier=c["brier"], skill=f(c["brier_skill_pct"])))
+        if c.get("skill_vs_base_rate_pct") is not None:  # not when every call went the same way
+            out.append(t("ev_base_rate", up=c["up_rate_pct"], base=c["brier_base_rate"],
+                         skill=f(c["skill_vs_base_rate_pct"])))
         for bk in c["buckets"]:
             out.append(t("ev_bucket", range=bk["p_range"], n=bk["n"], avg=bk["avg_p"], up=bk["actual_up_pct"]))
     else:

@@ -60,6 +60,29 @@ def test_coin_flip_forecasts_have_no_direction():
     assert cal["brier"] == pytest.approx(0.25)
 
 
+def test_in_a_trend_the_base_rate_is_the_harder_reference():
+    """Live, 2026-11-24: p_up around 0.42 while the price rose in about 1 of 5 cases - better than a coin
+    flip, worse than always forecasting that share."""
+    cal = evaluation.calibration([(0.42, False)] * 8 + [(0.42, True)] * 2)
+    assert cal["brier"] == pytest.approx(0.2084) and cal["brier_skill_pct"] > 0
+    assert cal["up_rate_pct"] == 20.0 and cal["brier_base_rate"] == pytest.approx(0.16)
+    assert cal["skill_vs_base_rate_pct"] == pytest.approx(-30.25, abs=0.06)
+
+    prices = [100, 99, 98, 101, 96, 95, 97, 93, 92, 94, 90, 89, 91, 88]  # 3 days later higher only from day 0
+    ev = evaluation.evaluate_signals([log_row(day(d), price=p, p_up=0.42) for d, p in enumerate(prices)])
+    assert ev["p_up_3d"]["settled"] == 11 and ev["p_up_3d"]["up_rate_pct"] == pytest.approx(9.1)
+    lines = "\n".join(evaluation.evaluation_lines({"bot": {"return_pct": 0.0, "avg_exposure_pct": 0.0, "cycles": 14},
+                                                   **ev}))
+    assert "base rate: the price rose in 9.1% of these cases" in lines
+
+
+def test_no_base_rate_comparison_when_every_call_went_one_way():
+    cal = evaluation.calibration([(0.7, True)] * 5)
+    assert cal["up_rate_pct"] == 100.0 and cal["brier_base_rate"] == 0.0
+    assert cal["skill_vs_base_rate_pct"] is None
+    assert evaluation.calibration([])["up_rate_pct"] is None
+
+
 def test_rows_without_forecast_are_skipped():
     ev = evaluation.evaluate_signals(daily_log(p_up=None))
     assert ev["p_up_3d"]["settled"] == 0 and ev["p_up_3d"]["brier"] is None

@@ -493,6 +493,7 @@ views:
               **Prognozy „szansa wzrostu w 3 dni”:**
               {%- if c.settled %}
               trafność kierunku **{{ '%.0f' | format(c.hit_rate_pct or 0) }}%**, Brier **{{ c.brier }}** (0,25 = rzut monetą, mniej = lepiej), rozliczonych {{ c.settled }}.
+              {%- if c.brier_base_rate %} Cena rosła w {{ '%.0f' | format(c.up_rate_pct) }}% przypadków - stała prognoza równa tej częstości dałaby Brier **{{ c.brier_base_rate }}**.{% endif %}
               {%- else %}
               jeszcze nic do rozliczenia - pierwsze wyniki 3 dni po pierwszej prognozie.
               {%- endif %}

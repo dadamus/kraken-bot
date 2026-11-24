@@ -71,8 +71,13 @@ def settle_calls(calls, closed_by_pair):
     brier = round(sum((p - o) ** 2 for p, o in forecasts) / len(forecasts), 4) if forecasts else None
     hits = sum(1 for p, o in forecasts if p != 0.5 and (p > 0.5) == (o == 1.0))
     decided = sum(1 for p, _ in forecasts if p != 0.5)
+    # the base rate: always forecasting the share of rises actually seen (known only afterwards). In a strong
+    # trend it scores far below the coin flip's 0.25, and a hit rate far above 50 % comes almost by itself
+    rate = sum(o for _, o in forecasts) / len(forecasts) if forecasts else None
     return {"by_action": out, "p_up_3d": {"n": len(forecasts), "brier": brier,
-                                          "hit_rate_pct": round(hits / decided * 100, 1) if decided else None}}
+                                          "hit_rate_pct": round(hits / decided * 100, 1) if decided else None,
+                                          "up_rate_pct": round(rate * 100, 1) if rate is not None else None,
+                                          "brier_base_rate": round(rate * (1 - rate), 4) if rate is not None else None}}
 
 
 def benchmarks(cfg, state, prices):
@@ -117,5 +122,7 @@ def report_text(state):
                  if "hit_rate_pct" in a else "")
         lines.append(f"  calls {action}: {a['n']}, avg 3-day move {a['avg_move_pct']:+}%{extra}")
     p = ev["calls"]["p_up_3d"]
-    lines.append(f"  p_up_3d: {p['n']} settled, Brier {p['brier']}, hit rate {p['hit_rate_pct']}%")
+    base = (f"; the price rose in {p['up_rate_pct']}% of them, always forecasting that scores Brier"
+            f" {p['brier_base_rate']}" if p.get("brier_base_rate") else "")  # 0: every call went one way
+    lines.append(f"  p_up_3d: {p['n']} settled, Brier {p['brier']}, hit rate {p['hit_rate_pct']}%{base}")
     return "\n".join(lines)

@@ -121,8 +121,11 @@ def render(cfg, state, calls, trades, opts):
         out.append(f"<h2>{esc(t('calls_settled'))}</h2>")
         out.append(table([t("action"), t("n"), t("avg_move"), t("hit_rate") + " %"], rows, "-"))
         p = ev["calls"]["p_up_3d"]
+        base = (" " + esc(t("base_rate", up=p["up_rate_pct"], b=p["brier_base_rate"]))
+                if p.get("brier_base_rate") else "")  # 0: every call went one way, nothing to compare
         out.append(f'<div class="note">{esc(t("brier"))}: <b>{esc(p["brier"] if p["brier"] is not None else "-")}</b>'
-                   f' (n={p["n"]}), {esc(t("hit_rate"))} {esc(p["hit_rate_pct"] if p["hit_rate_pct"] is not None else "-")}%</div>')
+                   f' (n={p["n"]}), {esc(t("hit_rate"))} {esc(p["hit_rate_pct"] if p["hit_rate_pct"] is not None else "-")}%.'
+                   f'{base}</div>')
     return (f"<!doctype html><html lang='{texts.LANG}'><head><meta charset='utf-8'>"
             "<meta name='viewport' content='width=device-width,initial-scale=1'><meta http-equiv='refresh' content='60'>"
             f"<title>CFD paper</title><style>{CSS}</style></head><body><main>{''.join(out)}</main></body></html>")

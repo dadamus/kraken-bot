@@ -50,8 +50,10 @@ Context (any part may be missing, in which case that data is unavailable):
   the trades per strategy. With few samples it is mostly noise; do not over-react to it,
 - crypto only: derivatives (funding, open interest), fear_greed, market_overview, implied_vol,
   coinbase_premium,
-- for every instrument: us_markets (Nasdaq 100, S&P 500, VIX, the US 10-year yield, the dollar index; a day or
-  more behind) and macro_calendar (high-impact US events; in_hours negative = already happened),
+- for every instrument: us_markets (Nasdaq 100, S&P 500, VIX, the US 10-year yield, the dollar index DXY; per
+  series the latest session with its date and as_of_utc, while a market is open the 1-day change is the move so
+  far; source "FRED" = a fallback a day or more behind) and macro_calendar (high-impact US events; in_hours
+  negative = already happened),
 - news_last_24h: headlines.
 Do not invent facts beyond the data.
 

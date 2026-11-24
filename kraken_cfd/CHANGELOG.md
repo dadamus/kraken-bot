@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.1
+- US market data from Yahoo Finance, FRED only as the fallback (from the Kraken bot 2.11.3). FRED is a day
+  or more behind: on Tuesday morning the model saw Thursday's Nasdaq and Friday's VIX, while yields and the
+  dollar are the main drivers of gold and EUR/USD. The dollar is DXY now (`usd_index_dxy`); FRED's broad index
+  comes only as the fallback, as `usd_index_broad`.
+- The evaluation, the panel and the model's track record show the p_up_3d Brier next to the base rate: how
+  often the price rose (`up_rate_pct`) and the Brier of always forecasting that share (`brier_base_rate`). In
+  a falling market a high hit rate comes almost by itself (89 % on 2026-11-24).
+
 ## 0.5.0
 - Spike wicks: Kraken's EUR/USD book is thin and its candles show wicks no broker's feed does (1.0952 ->
   1.1859 on 2026-11-20). Such a stop fired the EUR/USD short that day at 1.104, while the market traded around

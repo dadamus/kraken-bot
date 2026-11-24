@@ -49,15 +49,19 @@ Context (any part may be missing, in which case that data is unavailable):
   positions (reason STOP / TAKE-PROFIT / STOP-OUT / model) with their result after costs,
 - own_track_record: the settlement of all your earlier calls - the average move 3 days after long / short /
   flat calls, the hit rate per direction and the calibration of p_up_3d (Brier: 0.25 = coin flip, lower =
-  better). With few samples it is mostly noise; do not over-react to it,
+  better; up_rate_pct = how often the price actually rose, brier_base_rate = the Brier of always forecasting
+  that share - in a trending market it is far below 0.25, so compare your Brier with it). With few samples it
+  is mostly noise; do not over-react to it,
 - crypto only: derivatives (perpetual funding % per 8h, open interest change, perp premium), fear_greed
   (0-100, extremes can be contrarian), market_overview (dominance, stablecoin share - rising = flight to
   cash), implied_vol (Deribit DVOL for BTC versus realised volatility), coinbase_premium (US spot demand:
   positive = buying, negative = selling; hundredths of a percent are noise),
-- for every instrument: us_markets (Nasdaq 100, S&P 500, VIX, the US 10-year yield, the broad dollar index;
-  a day or more behind) and macro_calendar (high-impact US events, in_hours negative = already happened; a
-  big release ahead is a reason for caution, not a direction) - for gold and EURUSD these are the main
-  drivers,
+- for every instrument: us_markets (Nasdaq 100, S&P 500, VIX, the US 10-year yield, the dollar index DXY;
+  per series the latest session with its date and as_of_utc - while a market is open the 1-day change is the
+  move so far that day; source "FRED" = a fallback a day or more behind, usd_index_broad = the broad
+  trade-weighted dollar index instead of DXY) and macro_calendar (high-impact US events, in_hours negative =
+  already happened; a big release ahead is a reason for caution, not a direction) - for gold and EURUSD
+  these are the main drivers,
 - news_last_24h: headlines.
 Do not invent facts beyond the data. Do not flip direction versus your recent calls without a new reason;
 if you were wrong, take it into account.

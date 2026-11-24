@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.2
+- US market data for the daily regime call from Yahoo Finance, FRED only as the fallback (from the Kraken bot
+  2.11.3 copy): FRED was a day or more behind, on Tuesday morning still Thursday's Nasdaq and Friday's VIX.
+
 ## 0.2.1
 - From the CFD paper 0.5.0 copy: spike wicks of Kraken's thin EUR/USD book are cut in the daily candles
   (the regime rule, the daily trend, the model's view) and in the candles of the stop check, so a spike no

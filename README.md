@@ -24,8 +24,9 @@ Logs, Home Assistant entities, notifications and the model's reasoning are avail
    news headlines (CoinDesk, Cointelegraph, Decrypt), perpetual funding and open interest
    (Kraken Futures), Fear & Greed (alternative.me), BTC/ETH dominance and stablecoin share (CoinGecko),
    options implied volatility DVOL (Deribit, BTC and ETH), US markets - Nasdaq 100, S&P 500, VIX, 10-year
-   yield, dollar index (FRED), this week's high-impact US macro events (ForexFactory feed), the Coinbase
-   premium versus Kraken (US spot demand), plus the settlement of the bot's own earlier calls.
+   yield, dollar index (Yahoo Finance, FRED as the fallback), this week's high-impact US macro events
+   (ForexFactory feed), the Coinbase premium versus Kraken (US spot demand), plus the settlement of the
+   bot's own earlier calls.
 3. Sends everything to Claude in one request. Claude returns, for every pair, `buy` / `sell` / `hold`,
    a confidence, the probability that the price is higher in 3 days (`p_up_3d`), a stop level and a
    short justification. The response format is enforced with structured outputs.

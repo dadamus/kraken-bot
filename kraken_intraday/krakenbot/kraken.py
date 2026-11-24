@@ -14,6 +14,11 @@ import requests
 from . import config, portfolio
 from .i18n import t
 
+# A buy the bot sent stays "pending" until its trade shows up in the trade history. Until then the new coins
+# look like coins from outside the history and would get the manual entry price (see sync_live). An order not
+# in the history after this long is taken as never filled.
+PENDING_BUY_MAX_S = 1800
+
 
 def kraken_private(path, data):
     key, secret = os.environ.get("KRAKEN_API_KEY"), os.environ.get("KRAKEN_API_SECRET")
@@ -170,6 +175,7 @@ def sync_live(cfg, state, prices):
     info = kraken_pairs(cfg["pairs"])
     bal = {k: float(v) for k, v in kraken_private("/0/private/Balance", {}).items()}
     trades = kraken_trades()
+    filled = {x.get("ordertxid") for x in trades}
     manual = manual_entry_prices(cfg)
     r = cfg["risk"]
     state["eur"] = bal.get(next(iter(info.values()))["quote"], 0.0)
@@ -177,7 +183,15 @@ def sync_live(cfg, state, prices):
         coin = bal.get(i["base"], 0.0)
         entry = source = None
         min_coin = r["min_trade_eur"] / prices[pair]  # dust left after a sale is ignored
-        manual_price = manual.get(pair)
+        old = state["positions"].get(pair, {})  # the balance knows nothing about our stop levels
+        pending = old.get("pending_buy")
+        if pending and (pending["txid"] in filled or time.time() - pending["at"] > PENDING_BUY_MAX_S):
+            pending = None
+        # the bot's own buy not yet in the history: its coins would count as bought outside it, at the manual
+        # price (a stop-loss "hit" at once when that price is far above the market) - history only until it is in
+        manual_price = None if pending else manual.get(pair)
+        if pending:
+            print(t("pending_buy", pair=pair))
         if manual_price and not prices[pair] / 3 <= manual_price <= prices[pair] * 3:
             # the usual mistake: the total amount paid entered instead of the price per coin
             hint = t("implausible_entry_hint", manual=manual_price, per_coin=manual_price / coin) if coin else ""
@@ -190,13 +204,14 @@ def sync_live(cfg, state, prices):
             print(t("entry_line", pair=pair, entry=entry, source=t(f"entry_source_{source}"), pnl=pnl))
             if pnl <= -r["stop_loss_pct"] or (r.get("take_profit_pct") and pnl >= r["take_profit_pct"]):
                 print(t("beyond_threshold", pair=pair))
-        elif coin * prices[pair] >= r["min_trade_eur"]:
+        elif coin * prices[pair] >= r["min_trade_eur"] and not pending:
             print(t("no_entry_price", pair=pair))
-        old = state["positions"].get(pair, {})  # the balance knows nothing about our stop levels
         state["positions"][pair] = {"coin": coin, "entry_price": entry, "entry_source": source,
                                     "stop_price": old.get("stop_price") if coin >= min_coin else None,
                                     "exchange_stop": old.get("exchange_stop"),  # reconciled by exchange_stops
                                     "peak_price": old.get("peak_price") if coin >= min_coin else None}
+        if pending:
+            state["positions"][pair]["pending_buy"] = pending
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
     if not state.get("synced_at"):  # first live start: the reference point for return and drawdown
         state["start_eur"] = round(portfolio.equity_of(state, prices), 2)
@@ -223,7 +238,8 @@ def sync_live(cfg, state, prices):
 
 
 def live_execute(cfg, info, order, price):
-    """Market order on Kraken. Returns False when the order did not go through."""
+    """Market order on Kraken. Returns False when the order did not go through, else the order's txid (True in
+    validation mode, where Kraken places nothing)."""
     if order["side"] == "buy":  # reserve for fee and slippage so EUR does not run short
         reserve = (cfg["fee_pct"] + cfg.get("slippage_pct", 0.1)) / 100
         volume = order["eur"] * (1 - reserve) / price
@@ -244,4 +260,5 @@ def live_execute(cfg, info, order, price):
         print(t("order_rejected", err=e))
         return False
     print(f"  Kraken: {res}")
-    return True
+    txids = res.get("txid") or []
+    return txids[0] if txids else True

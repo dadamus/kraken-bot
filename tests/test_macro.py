@@ -1,4 +1,5 @@
-"""Context from outside crypto: US markets (FRED), the macro calendar and the Coinbase premium."""
+"""Context from outside crypto: US markets (Yahoo, FRED as the fallback), the macro calendar and the Coinbase
+premium."""
 from datetime import datetime, timezone
 
 import pytest
@@ -35,20 +36,60 @@ def test_fred_csv_skips_holidays(monkeypatch):
     assert macro.fetch_fred("DGS10") == [("2026-11-02", 4.91), ("2026-11-04", 4.9)]
 
 
-def test_us_markets_keeps_what_works(monkeypatch):
-    def fake(series_id, days=60):
+def down(*args, **kwargs):
+    raise RuntimeError("down")
+
+
+def test_yahoo_chart_gives_session_dates_and_the_time_of_the_last_price(monkeypatch):
+    seen = {}
+    # daily bars stamped at the New York open (14:30 UTC = 09:30 EST); a day without a close; the current
+    # session reported twice (its bar and once more at the latest price) - one row per session date
+    data = {"chart": {"result": [{
+        "meta": {"gmtoffset": -18000, "regularMarketTime": 1795467600},  # Monday 2026-11-23 21:00 UTC
+        "timestamp": [1795012200, 1795098600, 1795185000, 1795444200, 1795467600],  # Wed - Fri 14:30, Mon 14:30, 21:00
+        "indicators": {"quote": [{"close": [None, 26517.05078125, 25028.98046875, 26700.0, 26746.099609375]}]}}]}}
+
+    def fake_get(url, **kwargs):
+        seen["url"], seen["params"] = url, kwargs["params"]
+        return Resp(data=data)
+
+    monkeypatch.setattr(requests, "get", fake_get)
+    rows, as_of = macro.fetch_yahoo("^NDX")
+    assert seen["url"].endswith("/v8/finance/chart/%5ENDX") and seen["params"]["interval"] == "1d"
+    assert rows == [("2026-11-19", 26517.1), ("2026-11-20", 25029.0), ("2026-11-23", 26746.1)]
+    assert as_of == 1795467600
+    summary = macro.yahoo_summary("^NDX")
+    assert summary["date"] == "2026-11-23" and summary["as_of_utc"] == "2026-11-23 21:00"
+    assert summary["change_1d_pct"] == pytest.approx(6.86, abs=0.01)
+
+
+def test_us_markets_prefer_yahoo_and_fall_back_to_fred_per_series(monkeypatch):
+    def yahoo(symbol, level=False):
+        if symbol in ("^VIX", "DX-Y.NYB"):
+            raise RuntimeError("down")
+        return {**macro.series_summary([("2026-11-20", 100.0), ("2026-11-23", 106.0)], level),
+                "as_of_utc": "2026-11-23 21:00"}
+
+    def fred(series_id, days=60):
         if series_id == "VIXCLS":
             raise RuntimeError("down")
-        return [("2026-11-04", 100.0), ("2026-11-05", 95.0)]
+        return [("2026-11-19", 120.0), ("2026-11-20", 123.0)]
 
-    monkeypatch.setattr(macro, "fetch_fred", fake)
+    monkeypatch.setattr(macro, "yahoo_summary", yahoo)
+    monkeypatch.setattr(macro, "fetch_fred", fred)
     out = macro.fetch_us_markets()
-    assert "vix" not in out and out["nasdaq100"]["change_1d_pct"] == -5.0
-    assert out["us10y_yield_pct"]["change_1d_points"] == -5.0
+    assert out["nasdaq100"]["change_1d_pct"] == 6.0 and out["nasdaq100"]["as_of_utc"] == "2026-11-23 21:00"
+    assert "source" not in out["nasdaq100"]
+    assert out["us10y_yield_pct"]["change_1d_points"] == 6.0  # a yield moves in points
+    assert "vix" not in out  # both sources down: left out
+    # FRED has no DXY: the broad index comes under its own name, marked as the late fallback
+    assert "usd_index_dxy" not in out
+    assert out["usd_index_broad"]["source"] == "FRED" and out["usd_index_broad"]["date"] == "2026-11-20"
 
 
 def test_us_markets_none_when_everything_fails(monkeypatch):
-    monkeypatch.setattr(macro, "fetch_fred", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("down")))
+    monkeypatch.setattr(macro, "yahoo_summary", down)
+    monkeypatch.setattr(macro, "fetch_fred", down)
     assert macro.fetch_us_markets() is None
 
 
