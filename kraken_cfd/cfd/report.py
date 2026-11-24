@@ -82,12 +82,13 @@ def settle_calls(calls, closed_by_pair):
 
 def benchmarks(cfg, state, prices):
     """Holding the pairs in equal parts since the start, unleveraged and without costs (a generous benchmark);
-    a pair priced in another currency counts as EUR cash."""
+    a currency pair counts as EUR cash, an instrument priced in USD (oil) by its price (the dollar's move
+    against the euro is left out)."""
     first = {p: v for p, v in (state.get("first_prices") or {}).items() if p in prices and v}
     if not first:
         return None
     # holding a currency pair from a EUR account means holding EUR: no change
-    growth = sum(prices[p] / first[p] if account.instrument(cfg, p)["quote"] == "EUR" else 1.0
+    growth = sum(1.0 if account.instrument(cfg, p)["asset_class"] == "currency" else prices[p] / first[p]
                  for p in first) / len(first)
     eq = account.equity(cfg, state, prices)
     hold_eur = state["start_eur"] * growth
@@ -125,4 +126,13 @@ def report_text(state):
     base = (f"; the price rose in {p['up_rate_pct']}% of them, always forecasting that scores Brier"
             f" {p['brier_base_rate']}" if p.get("brier_base_rate") else "")  # 0: every call went one way
     lines.append(f"  p_up_3d: {p['n']} settled, Brier {p['brier']}, hit rate {p['hit_rate_pct']}%{base}")
+    k = ev.get("kraken")
+    if k:  # shadow mode: the same trades with Kraken Derivatives' costs instead of the paper's
+        tot = k["total"]
+        lines.append(f"  with Kraken's costs ({tot['n']} trades): paper net {tot['paper_net_eur']} EUR ->"
+                     f" {tot['kraken_net_eur']} EUR (fees {tot['fee_eur']}, spread {tot['spread_eur']},"
+                     f" funding {tot['funding_eur']})")
+        if tot["not_tradable_n"]:
+            lines.append(f"  not tradable on Kraken in the EEA: {tot['not_tradable_n']} trades on"
+                         f" {', '.join(tot['not_tradable_pairs'])} (paper net {tot['not_tradable_paper_net_eur']} EUR)")
     return "\n".join(lines)

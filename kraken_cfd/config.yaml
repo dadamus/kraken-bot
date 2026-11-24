@@ -1,8 +1,9 @@
-# Home Assistant add-on definition. Paper only: it never sends an order anywhere.
+# Home Assistant add-on definition. Paper by default; real orders only with execution: live AND "mode": "live"
+# in config.json (see DOCS.md).
 name: Kraken CFD paper
-version: "0.5.1"
+version: "0.6.0"
 slug: kraken_cfd
-description: "Paper-only experiment: Claude calls long / short / flat on bitcoin, gold and EUR/USD, a simulated CFD account with leverage, spread and swap executes them"
+description: "Claude calls long / short / flat on bitcoin, gold and crude oil; a simulated CFD account executes them, optionally shadowed on Kraken Derivatives (orders checked, not sent) or live"
 url: https://github.com/dadamus/kraken-bot
 arch:
   - aarch64
@@ -22,8 +23,16 @@ options:
   language: en
   run_time: "08:20"
   refresh_minutes: 5
+  execution: paper
+  kraken_futures_api_key: ""
+  kraken_futures_api_secret: ""
+  live_smoke_test: false
 schema:
   anthropic_api_key: password
   language: list(en|pl)
   run_time: match(^([01]\d|2[0-3]):[0-5]\d$)
   refresh_minutes: int(1,60)
+  execution: list(paper|shadow|live)
+  kraken_futures_api_key: password?
+  kraken_futures_api_secret: password?
+  live_smoke_test: bool

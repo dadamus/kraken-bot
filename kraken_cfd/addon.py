@@ -5,7 +5,12 @@
 - a refresh (cfd_bot.py --refresh: stops / take-profits replayed on minute candles, overnight swap, margin
   stop-out, Home Assistant) every refresh_minutes,
 - the dashboard page on port 8098 (ingress in Home Assistant),
-- an alert to the phone when a cycle fails, or refreshes fail three times in a row.
+- an alert to the phone when a cycle fails, or refreshes fail three times in a row,
+- with live_smoke_test switched on: one minimum-size round trip on Kraken Derivatives at start (real money,
+  see cfd/live.py smoke_test), once per switch-on.
+
+Execution (option execution): paper, shadow (the orders Kraken would need, checked, never sent) or live (real
+orders; also needs "mode": "live" in config.json - two opt-ins).
 
 Options come from /data/options.json in the add-on, or from environment variables in Docker. The data
 (config.json, state.json, calls.csv, trades.csv) lives in /config: /addon_configs/<id>_kraken_cfd in Home
@@ -25,6 +30,7 @@ APP = Path(__file__).resolve().parent
 OPTIONS = Path(os.environ.get("ADDON_OPTIONS", "/data/options.json"))
 DATA = Path(os.environ.get("CFD_DATA_DIR", "/config"))
 LAST_RUN = DATA / ".last_run"
+SMOKE_DONE = DATA / ".smoke_test"
 os.environ["CFD_DATA_DIR"] = str(DATA)
 
 from cfd import panel, settings, texts  # noqa: E402  (after CFD_DATA_DIR is set)
@@ -37,7 +43,11 @@ def load_options():
     return {"anthropic_api_key": os.environ.get("ANTHROPIC_API_KEY", ""),
             "language": os.environ.get("BOT_LANGUAGE", "en"),
             "run_time": os.environ.get("RUN_TIME", "08:20"),
-            "refresh_minutes": int(os.environ.get("REFRESH_MINUTES", "5"))}
+            "refresh_minutes": int(os.environ.get("REFRESH_MINUTES", "5")),
+            "execution": os.environ.get("CFD_EXECUTION", "paper"),
+            "kraken_futures_api_key": os.environ.get("KRAKEN_FUTURES_API_KEY", ""),
+            "kraken_futures_api_secret": os.environ.get("KRAKEN_FUTURES_API_SECRET", ""),
+            "live_smoke_test": os.environ.get("LIVE_SMOKE_TEST", "").lower() in ("1", "true", "yes")}
 
 
 def ensure_config(in_home_assistant, language):
@@ -75,6 +85,22 @@ def alert(message):
     alerts.send(cfg, texts.t("alert_title"), message)
 
 
+def smoke_test(opts):
+    """The one-off live test, once per switch-on of the option (switching it off forgets the last run)."""
+    if not opts.get("live_smoke_test"):
+        SMOKE_DONE.unlink(missing_ok=True)
+        return
+    if SMOKE_DONE.exists():
+        print(f"Live smoke test already ran ({SMOKE_DONE.read_text().strip()}); switch the option off and on to"
+              " repeat it.", flush=True)
+        return
+    code, err = run("--live-smoke-test")
+    result = "PASSED" if code == 0 else "FAILED"
+    SMOKE_DONE.write_text(f"{datetime.now():%Y-%m-%d %H:%M} {result}")
+    alert(f"live smoke test on Kraken Derivatives: {result}" + (f" ({err})" if code and err else "")
+          + " - details in the add-on log")
+
+
 def main():
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
     opts = load_options()
@@ -85,11 +111,20 @@ def main():
     if opts.get("anthropic_api_key"):
         os.environ["ANTHROPIC_API_KEY"] = opts["anthropic_api_key"]
     os.environ["BOT_LANGUAGE"] = opts.get("language") or "en"
+    os.environ["CFD_EXECUTION"] = opts.get("execution") or "paper"
+    for opt, env in (("kraken_futures_api_key", "KRAKEN_FUTURES_API_KEY"),
+                     ("kraken_futures_api_secret", "KRAKEN_FUTURES_API_SECRET")):
+        if opts.get(opt):
+            os.environ[env] = opts[opt]
     ensure_config(in_ha, os.environ["BOT_LANGUAGE"])
     panel.serve(opts, int(os.environ.get("PANEL_PORT", "8098")), panel.INGRESS_PROXY if in_ha else None)
 
     refresh = int(opts.get("refresh_minutes") or 5)
-    print(f"CFD paper: daily cycle at {opts['run_time']}, refresh every {refresh} min, PAPER ONLY", flush=True)
+    mode = os.environ["CFD_EXECUTION"]
+    note = {"paper": "PAPER ONLY", "shadow": "paper + shadow orders on Kraken (none sent)",
+            "live": "LIVE on Kraken Derivatives if config.json has \"mode\": \"live\""}.get(mode, mode)
+    print(f"CFD: daily cycle at {opts['run_time']}, refresh every {refresh} min, {note}", flush=True)
+    smoke_test(opts)
     failed = 0
     last_refresh = 0.0
     while True:

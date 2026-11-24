@@ -1,54 +1,108 @@
 """Command line, the daily cycle and the refresh.
 
-  python cfd_bot.py              # the daily cycle: data, the model's calls, the simulated orders
-  python cfd_bot.py --offline    # the same on fake data with random calls (no internet, no API key)
-  python cfd_bot.py --refresh    # between cycles: stops / take-profits, swap, stop-out, Home Assistant
-  python cfd_bot.py --report     # the latest evaluation
+  python cfd_bot.py                  # the daily cycle: data, the model's calls, the orders
+  python cfd_bot.py --offline        # the same on fake data with random calls (no internet, no API key)
+  python cfd_bot.py --refresh        # between cycles: stops / take-profits, swap, stop-out, Home Assistant
+  python cfd_bot.py --report         # the latest evaluation
+  python cfd_bot.py --live-smoke-test  # one minimum-size round trip on Kraken Derivatives (real money)
+
+Where the orders go (settings.execution): the simulated account (paper), the simulated account plus the
+orders Kraken would need, checked and logged but never sent (shadow, cfd/shadow.py), or Kraken Derivatives
+(live, cfd/live.py: also needs "mode": "live" in config.json).
 """
 import argparse
 from datetime import datetime, timedelta
 
-from krakenbot import costs, i18n as kb_i18n, indicators, macro, market, offline
+from krakenbot import alerts, costs, i18n as kb_i18n, indicators, macro, market, offline
 
-from . import account, guard, ha, journal, model, report, risk, settings, texts
+from . import account, guard, ha, journal, live, model, report, risk, settings, shadow, sources, texts
 
 FMT = "%Y-%m-%d %H:%M"
 
 
+class PaperBroker:
+    """The simulated account (account.py) behind the interface it shares with live.Broker."""
+    live = False
+    error = None
+    extra_trades = ()
+
+    def protect(self, cfg, state, prices, now, fetch=guard.fetch_candles):
+        trades = guard.check(cfg, state, prices, now, fetch)
+        account.charge_swaps(cfg, state, prices, now)
+        return trades + account.stop_out(cfg, state, prices, now)
+
+    def open(self, cfg, state, pair, side, qty, mid, stop, take_profit, now, prices):
+        return account.open_position(cfg, state, pair, side, qty, mid, stop, take_profit, now, prices)
+
+    def close(self, cfg, state, pair, mid, reason, now, prices):
+        return account.close_position(cfg, state, pair, mid, reason, now, prices)
+
+    def move_stop(self, cfg, state, pair, now, prices, breakeven=False):
+        return None  # the paper stop lives in the state only
+
+
+PAPER = PaperBroker()
+
+
 def main(argv=None):
-    ap = argparse.ArgumentParser(description="CFD paper simulator (no real orders)")
+    ap = argparse.ArgumentParser(description="CFD simulator / Kraken Derivatives bot")
     ap.add_argument("--offline", action="store_true")
     ap.add_argument("--refresh", action="store_true")
     ap.add_argument("--report", action="store_true")
+    ap.add_argument("--live-smoke-test", action="store_true")
     args = ap.parse_args(argv)
     cfg = settings.load_config()
     texts.set_language(cfg)
     kb_i18n.set_language(cfg)  # messages of the shared market-data code
+    if args.live_smoke_test:
+        raise SystemExit(0 if live.smoke_test() else 1)
+    mode = settings.execution(cfg)
+    broker = PAPER
+    if mode == "live" and not args.offline:
+        try:
+            broker = live.prepare(cfg)
+        except live.LiveError as e:
+            raise SystemExit(f"LIVE MODE NOT STARTED: {e}")
     state = account.load_state(cfg)
     if args.report:
         print(report.report_text(state))
     elif args.refresh:
-        refresh(cfg, state)
+        refresh(cfg, state, broker=broker, mode=mode)
     else:
-        daily_cycle(cfg, state, offline_mode=args.offline)
+        daily_cycle(cfg, state, offline_mode=args.offline, broker=broker, mode=mode)
+    if mode != "live" and not args.report and not args.offline:
+        try:  # live positions left from an earlier live period stay protected until closed
+            live.watch(cfg)
+        except Exception as e:
+            print(f"  [kraken] watching the live positions failed: {e}")
+
+
+def label(broker, mode):
+    return "CFD live" if broker.live else f"CFD paper{' + shadow' if mode == 'shadow' else ''}"
+
+
+def flush_alerts(cfg, state, now, mode):
+    if mode in ("shadow", "live"):
+        try:
+            alerts.flush(cfg, state, now)
+        except Exception as e:
+            print(f"  [alerts] {e}")
 
 
 def fetch_prices(cfg, state):
-    prices = {pair: market.fetch_price(pair) for pair in cfg["pairs"]}
+    prices = {pair: sources.price(pair) for pair in cfg["pairs"]}
     for pair, pos in state["positions"].items():  # a pair removed from config.json is still valued
         if pair not in prices:
-            prices[pair] = market.optional(f"price {pair}", market.fetch_price, pair) or pos["last_price"]
+            prices[pair] = market.optional(f"price {pair}", sources.price, pair) or pos["last_price"]
     if "EURUSD" not in prices and any(account.instrument(cfg, p)["quote"] == "USD" for p in prices):
         prices["EURUSD"] = market.fetch_price("EURUSD")  # to value USD-quoted pairs in EUR
     return prices
 
 
-def protect(cfg, state, prices, now, fetch=guard.fetch_candles):
-    """Stops / take-profits since the last check, the overnight swap, the margin stop-out. Returns the closed
-    trades."""
-    trades = guard.check(cfg, state, prices, now, fetch)
-    account.charge_swaps(cfg, state, prices, now)
-    trades += account.stop_out(cfg, state, prices, now)
+def protect(cfg, state, prices, now, fetch=guard.fetch_candles, broker=None):
+    """Stops / take-profits since the last check, the overnight swap, the margin stop-out (live: the exchange's
+    state, see live.sync). Returns the closed trades."""
+    trades = (broker or PAPER).protect(cfg, state, prices, now, fetch)
     for pair, pos in state["positions"].items():
         pos["last_price"] = prices.get(pair, pos["last_price"])
     state["last_check"] = int(now.timestamp())
@@ -60,11 +114,20 @@ def protect(cfg, state, prices, now, fetch=guard.fetch_candles):
     return trades
 
 
-def refresh(cfg, state, now=None):
+def refresh(cfg, state, now=None, broker=None, mode=None):
     now = now or datetime.now()
+    broker = broker or PAPER
+    shadowing = (mode or settings.execution(cfg)) == "shadow" and not broker.live
+    sources.use(cfg)
     prices = fetch_prices(cfg, state)
-    trades = protect(cfg, state, prices, now)
+    before = shadow.snapshot(state)
+    trades = protect(cfg, state, prices, now, fetch=guard.fetch_candles, broker=broker)
     journal.log_trades(trades)
+    if shadowing:
+        shadow.record(cfg, state, before, trades, prices, now)
+        shadow.sample(cfg, state, now)
+        shadow.check_account(cfg, state, prices, now)
+    flush_alerts(cfg, state, now, mode or settings.execution(cfg))
     account.save_state(state)
     ha.publish(cfg, state, prices, [{"kind": "close", **tr} for tr in trades])
 
@@ -77,12 +140,12 @@ def load_markets(pairs, offline_mode, crypto=None, cfg=None):
         if offline_mode:
             closed, price = offline.fake_market(60000.0 / (i * 10 + 1))
         else:  # 720 days (Kraken's maximum): SMA200, the yearly picture, settling the calls
-            closed, price = market.fetch_ohlc(pair, 720)
+            closed, price = sources.ohlc(pair, 720)
             closed = account.clean_candles(cfg, pair, closed)
         closed_all[pair], prices[pair] = closed, price
         markets[pair] = m = indicators.indicators(closed, price)
         if not offline_mode:
-            hours = market.optional(f"hourly {pair}", market.fetch_hourly, pair)
+            hours = market.optional(f"hourly {pair}", sources.hourly, pair)
             hours = account.clean_candles(cfg, pair, hours) if hours else hours
             if hours:
                 m["last_24_hours"] = indicators.hourly(hours, price)
@@ -143,7 +206,10 @@ def trading_terms(cfg, now=None, state=None):
                               if inst["weekend_close"] else "24/7"),
             "market_open_now": account.market_open(cfg, pair, now)}
     # the model is not told the account is simulated: it should trade it like a real one
-    return {"account_currency": "EUR", "style": model.style(cfg), "allow_short": cfg.get("allow_short", True),
+    extra = {"costs": "perpetual futures on Kraken: taker fee 0.05 % of the notional per side; instead of an"
+                      " overnight swap an hourly funding payment (longs pay shorts while it is positive)"} \
+        if settings.LIVE else {}
+    return {"account_currency": "EUR", "style": model.style(cfg), "allow_short": cfg.get("allow_short", True), **extra,
             "instruments": instruments, "stop_out_margin_level_pct": cfg["stop_out_margin_level_pct"],
             **{k: r[k] for k in ("min_confidence", "risk_per_trade_pct", "min_stop_atr", "default_stop_atr",
                                  "max_stop_pct", "default_reward_risk", "event_stop_atr", "event_window_hours")},
@@ -172,22 +238,32 @@ def recent(calls, trades, prices, now, days=7):
     return out_calls, out_trades
 
 
-def execute(cfg, state, prices, markets, signals, halt, now):
-    """Turns the calls into simulated orders: every close first (they free margin), then the opens.
+def execute(cfg, state, prices, markets, signals, halt, now, broker=None):
+    """Turns the calls into orders (simulated, or real through live.Broker): every close first (they free
+    margin), then the opens. A failed order leaves "error" in executed and the reason in the rule.
     Returns (calls.csv rows, closed trades, events for the notifications)."""
+    broker = broker or PAPER
     pairs = cfg["pairs"]
     event = risk.event_ahead(cfg, state, now)
+    stops = {pair: pos["stop"] for pair, pos in state["positions"].items()}
     plans = {pair: risk.decide(cfg, state, pair, prices[pair], signals[pair], markets[pair].get("atr14"), halt, event)
              if account.market_open(cfg, pair, now)
              else [{"do": "none", "why": f"model: {signals[pair]['action']}, market closed (weekend)"}]
              for pair in pairs}
+    for pair, pos in state["positions"].items():  # the model's tighter stop (risk.tighten) on the exchange too
+        if pos["stop"] != stops.get(pair):
+            broker.move_stop(cfg, state, pair, now, prices)
     done = {pair: [] for pair in pairs}
-    trades, events = [], []
+    trades, events, failed = [], [], set()
     for pair in pairs:
         for step in plans[pair]:
             if step["do"] == "close" and pair in state["positions"]:
-                tr = account.close_position(cfg, state, pair, prices[pair], f"model: {signals[pair]['action']}", now,
-                                            prices)
+                tr = broker.close(cfg, state, pair, prices[pair], f"model: {signals[pair]['action']}", now, prices)
+                if not tr:
+                    step["why"] += f" -> close failed: {broker.error}"
+                    done[pair].append("error")
+                    failed.add(pair)
+                    continue
                 trades.append(tr)
                 events.append({"kind": "close", **tr})
                 done[pair].append(f"close_{tr['side']}")
@@ -195,17 +271,28 @@ def execute(cfg, state, prices, markets, signals, halt, now):
         for step in plans[pair]:
             if step["do"] != "open":
                 continue
+            if pair in failed:  # a flip whose close failed must not open the other side
+                step["why"] += " -> not opened: the close failed"
+                continue
             qty, why = risk.size(cfg, state, prices, pair, prices[pair], step["dist"])
             if not qty:
                 step["why"] += f" -> not opened: {why}"
                 continue
-            pos = account.open_position(cfg, state, pair, step["side"], qty, prices[pair], step["stop"],
-                                        step["take_profit"], now, prices)
+            pos = broker.open(cfg, state, pair, step["side"], qty, prices[pair], step["stop"], step["take_profit"],
+                              now, prices)
+            if not pos:
+                step["why"] += f" -> not opened: {broker.error}"
+                done[pair].append("error")
+                continue
             done[pair].append(f"open_{step['side']}")
             events.append({"kind": "open", "pair": pair, "side": step["side"], "qty": qty, "price": pos["entry"],
                            "margin": account.notional_eur(cfg, pair, qty, prices[pair], prices)
                            / account.leverage(cfg, pair), "stop": pos["stop"],
                            "take_profit": pos["take_profit"], "reasoning": signals[pair]["reasoning"]})
+    if broker.extra_trades:  # live: a position closed at once because its stop could not be placed
+        trades += list(broker.extra_trades)
+        events += [{"kind": "close", **tr} for tr in broker.extra_trades]
+        broker.extra_trades.clear()
     eq = round(account.equity(cfg, state, prices), 2)
     rows, now_s = [], now.strftime(FMT)
     for pair in pairs:
@@ -222,20 +309,33 @@ def execute(cfg, state, prices, markets, signals, halt, now):
     return rows, trades, events
 
 
-def daily_cycle(cfg, state, offline_mode=False, now=None, ask=None):
+def daily_cycle(cfg, state, offline_mode=False, now=None, ask=None, broker=None, mode=None):
     now = now or datetime.now()
+    broker = broker or PAPER
+    mode = mode or settings.execution(cfg)
+    shadowing = mode == "shadow" and not broker.live and not offline_mode
+    sources.use(cfg)
     pairs = cfg["pairs"]
-    print(f"=== CFD paper {now:%Y-%m-%d %H:%M}: {', '.join(pairs)}{' (OFFLINE)' if offline_mode else ''} ===")
+    print(f"=== {label(broker, mode)} {now:%Y-%m-%d %H:%M}: {', '.join(pairs)}{' (OFFLINE)' if offline_mode else ''} ===")
     crypto = [pair for pair in pairs if account.is_crypto(cfg, pair)]
     markets, prices, closed_all = load_markets(pairs, offline_mode, crypto, cfg)
-    if not offline_mode and "EURUSD" not in prices and any(account.instrument(cfg, p)["quote"] == "USD" for p in pairs):
-        prices["EURUSD"] = market.fetch_price("EURUSD")  # to value USD-quoted pairs in EUR
+    if "EURUSD" not in prices and any(account.instrument(cfg, p)["quote"] == "USD" for p in pairs):
+        # to value USD-quoted pairs (oil) in EUR; offline a fixed rate (no network)
+        prices["EURUSD"] = 1.1 if offline_mode else market.fetch_price("EURUSD")
     for pair in pairs:
         state["first_prices"].setdefault(pair, prices[pair])
-    trades = protect(cfg, state, prices, now, fetch=None if offline_mode else guard.fetch_candles)
+    before = shadow.snapshot(state)
+    trades = protect(cfg, state, prices, now, fetch=None if offline_mode else guard.fetch_candles, broker=broker)
+    # logged and saved at once: a model call failing below must neither lose these closes nor repeat them
+    journal.log_trades(trades)
+    account.save_state(state)
+    if shadowing:
+        shadow.record(cfg, state, before, trades, prices, now)
+        shadow.sample(cfg, state, now)
+        shadow.check_account(cfg, state, prices, now, force=True)
     news = [] if offline_mode else market.fetch_news(cfg["news_feeds"])
     context = {} if offline_mode else load_context(crypto, state, closed_all)
-    calls_log, trades_log = journal.read_calls(), journal.read_trades() + trades
+    calls_log, trades_log = journal.read_calls(), journal.read_trades()
     recent_calls, recent_trades = recent(calls_log, trades_log, prices, now)
     payload = {"markets": markets, "account": account_view(cfg, state, prices, now),
                "trading_terms": trading_terms(cfg, now, state), "news_last_24h": news,
@@ -256,15 +356,23 @@ def daily_cycle(cfg, state, offline_mode=False, now=None, ask=None):
     print(f"  model: {summary}")
 
     halt = risk.check_halt(cfg, state, prices, now)
-    rows, closed, events = execute(cfg, state, prices, markets, signals, halt, now)
+    before = shadow.snapshot(state)
+    rows, closed, events = execute(cfg, state, prices, markets, signals, halt, now, broker)
+    if shadowing:
+        shadow.record(cfg, state, before, closed, prices, now)
     events = [{"kind": "close", **tr} for tr in trades] + events  # stops hit before the cycle too
     trades += closed
     state["last_summary"] = summary
     state["last_cycle"] = now.strftime(FMT)
     journal.log_calls(rows)
-    journal.log_trades(trades)
-    state["evaluation"] = report.evaluation(cfg, state, prices, closed_all, journal.read_calls(),
-                                            journal.read_trades(), now)
+    journal.log_trades(closed)
+    all_trades = journal.read_trades()
+    state["evaluation"] = report.evaluation(cfg, state, prices, closed_all, journal.read_calls(), all_trades, now)
+    if shadowing:
+        kraken = shadow.reprice(cfg, state, all_trades, now)
+        if kraken:
+            state["evaluation"]["kraken"] = kraken
+    flush_alerts(cfg, state, now, mode)
     account.save_state(state)
     eq = account.equity(cfg, state, prices)
     print(f"  equity {eq:.2f} EUR (start {state['start_eur']:.2f}), {len(state['positions'])} open")

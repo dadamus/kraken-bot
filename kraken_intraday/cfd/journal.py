@@ -8,6 +8,8 @@ CALL_FIELDS = ["date", "pair", "price", "action", "confidence", "p_up_3d", "stop
                "executed", "rule", "equity_eur", "reasoning"]
 TRADE_FIELDS = ["opened", "closed", "pair", "side", "qty", "entry", "exit", "stop", "take_profit", "reason",
                 "move_pct", "pnl_eur", "swap_eur", "spread_eur", "net_eur", "r_multiple", "days", "balance_eur"]
+# trades_live.csv: prices are the contract's (USD); swap_eur holds the funding paid, spread_eur the taker fees
+LIVE_TRADE_FIELDS = TRADE_FIELDS + ["symbol", "size", "entry_contract", "exit_contract", "fee_eur", "funding_eur"]
 
 
 def append(path, fields, rows):
@@ -35,7 +37,7 @@ def log_calls(rows):
 
 
 def log_trades(rows):
-    append(settings.TRADES_FILE, TRADE_FIELDS, rows)
+    append(settings.TRADES_FILE, LIVE_TRADE_FIELDS if settings.LIVE else TRADE_FIELDS, rows)
 
 
 def read_calls():

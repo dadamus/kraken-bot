@@ -1,6 +1,6 @@
 {
   "language": "en",
-  "pairs": ["XBTEUR", "PAXGEUR", "EURUSD"],
+  "pairs": ["XBTEUR", "PAXGEUR", "WTIUSD"],
   "model": "claude-opus-5-5",
   "effort": "high",
   "start_eur": 1000,
@@ -12,8 +12,12 @@
   "instruments": {
     "XBTEUR": {"name": "Bitcoin", "asset_class": "crypto"},
     "PAXGEUR": {"name": "Gold (PAXG, 1 troy ounce)", "asset_class": "gold", "leverage": 20, "spread_pct": 0.03,
+                "futures_symbols": ["PF_PAXGUSD", "PF_XAUUSD"],
                 "swap_pct_per_day": {"long": 0.034556, "short": 0.012667},
                 "weekend_close": "fri 23:00", "weekend_open": "mon 00:00"},
+    "WTIUSD": {"name": "WTI crude oil (Kraken PF_WTIOILUSD, mark price)", "asset_class": "oil", "quote": "USD",
+               "leverage": 10, "spread_pct": 0.08, "swap_pct_per_day": {"long": 0, "short": 0},
+               "source": "futures", "futures_symbols": ["PF_WTIOILUSD"]},
     "EURUSD": {"name": "EUR/USD", "asset_class": "currency", "quote": "USD", "leverage": 30, "spread_pct": 0.015,
                "swap_pct_per_day": {"long": 0.008333, "short": -0.000003},
                "weekend_close": "fri 22:00", "weekend_open": "sun 23:00"}

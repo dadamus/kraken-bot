@@ -1,6 +1,7 @@
-"""CFD paper: Claude calls long / short / flat on a few crypto pairs and a simulated CFD account executes the
-calls with leverage, spread, overnight swap and a margin stop-out. Paper only - nothing is ever sent to a
-broker. The point is to measure whether the model's short side (and leverage) would be worth anything.
+"""CFD paper: Claude calls long / short / flat on a few instruments and a simulated CFD account executes the
+calls with leverage, spread, overnight swap and a margin stop-out. The point is to measure whether the
+model's short side (and leverage) would be worth anything. Paper by default; execution: shadow also checks
+the orders Kraken Derivatives would need (never sent), execution: live (with "mode": "live") trades there.
 
 Modules, roughly in the order a cycle uses them:
   settings   paths, config.json (merged over config.example.json)
@@ -13,6 +14,11 @@ Modules, roughly in the order a cycle uses them:
   ha         Home Assistant entities and notifications
   texts      English / Polish texts for the panel and notifications
   panel      the read-only dashboard page
+  futures    the Kraken Derivatives REST API (public data, the account, orders behind a gate)
+  venue      pair -> contract, sizes and levels on the contract, Kraken's costs
+  sources    where an instrument's prices come from: Kraken spot, or a contract's mark price (oil)
+  shadow     shadow mode: the orders Kraken would need, its spreads and funding, paper re-priced
+  live       live mode: the exchange as the source of truth, orders with resting stops, the smoke test
   cycle      command line, the daily cycle and the refresh
 
 Market data, indicators, cost tracking and the Home Assistant client come from the Kraken bot's package

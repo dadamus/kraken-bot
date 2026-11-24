@@ -14,9 +14,7 @@ for gaps up to 11 hours, coarser after a longer outage):
 """
 from datetime import datetime
 
-from krakenbot import market
-
-from . import account
+from . import account, sources
 
 
 def interval_for(gap_seconds):
@@ -28,10 +26,11 @@ def interval_for(gap_seconds):
 
 
 def fetch_candles(pair, since_ts, now):
-    """Candles since `since_ts` (closed ones; the current price covers the open one)."""
+    """Candles since `since_ts` (closed ones; the current price covers the open one). From the pair's price
+    source (sources.use: Kraken spot, or a derivatives contract's mark price)."""
     interval = interval_for(now.timestamp() - since_ts)
     days = (now.timestamp() - since_ts) / 86400 + interval / 1440
-    closed, _ = market.fetch_ohlc(pair, days, interval)
+    closed, _ = sources.ohlc(pair, days, interval, volume=False)
     return closed, interval
 
 

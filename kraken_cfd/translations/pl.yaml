@@ -11,3 +11,15 @@ configuration:
   refresh_minutes:
     name: Odświeżanie (minuty)
     description: Jak często sprawdzane są stopy, take-profity, swap i stop-out depozytu. Bez zapytań do modelu.
+  execution:
+    name: Wykonanie
+    description: paper = tylko symulacja. shadow = symulacja, a do tego zlecenia, których wymagałby Kraken Derivatives, są sprawdzane z Krakenem i zapisywane (shadow.csv), nigdy wysyłane. live = prawdziwe zlecenia na Kraken Derivatives (wymaga też "mode" ustawionego na "live" w config.json).
+  kraken_futures_api_key:
+    name: Klucz API derywatów Kraken
+    description: Opcjonalny w trybie shadow (wystarczy Read Only - sprawdza portfel i klucz), wymagany w live (Full Access). Tworzony na koncie derywatów Krakena w Settings > API, osobno od klucza spot. Nigdy nie dawaj mu prawa do wypłat.
+  kraken_futures_api_secret:
+    name: Sekret API derywatów Kraken
+    description: Klucz prywatny pokazywany raz przy tworzeniu klucza derywatów.
+  live_smoke_test:
+    name: Test na prawdziwym koncie (prawdziwe pieniądze)
+    description: Po włączeniu dodatek przy starcie robi jeden test - kupuje i sprzedaje 0,0001 BTC na PF_XBTUSD (ok. 5 EUR, opłaty kilka groszy) wszystkimi typami zleceń trybu live - i podaje wynik. Wymaga klucza Full Access. Potem wyłącz; żeby powtórzyć, uruchom raz z wyłączoną, potem z włączoną.

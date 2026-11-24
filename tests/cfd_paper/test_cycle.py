@@ -2,23 +2,9 @@
 from datetime import timedelta
 
 import pytest
-from .cfd_helpers import NOW, sig
+from .cfd_helpers import NOW, fake_markets, sig
 
 from cfd import account, cycle, journal, panel
-
-
-def fake_markets(prices):
-    def load(pairs, offline_mode, crypto=None, cfg=None):
-        markets = {p: {"atr14": prices[p] * 0.03, "price_now": prices[p]} for p in pairs}
-        candles = {p: [] for p in pairs}
-        return markets, dict(prices), candles
-    return load
-
-
-@pytest.fixture
-def no_data(monkeypatch):
-    monkeypatch.setattr(cycle.market, "fetch_news", lambda feeds: ["headline"])
-    monkeypatch.setattr(cycle, "load_context", lambda pairs, state, closed: {"fear_greed": {"today": 50}})
 
 
 def test_daily_cycle_opens_closes_and_logs(ccfg, cstate, monkeypatch, no_data):
@@ -50,6 +36,22 @@ def test_daily_cycle_opens_closes_and_logs(ccfg, cstate, monkeypatch, no_data):
     assert cstate["positions"]["SOLEUR"]["side"] == "short"
     assert journal.read_calls()[-1]["executed"] == "close_long+open_short"
     assert cstate["evaluation"]["trades"]["short"]["n"] == 1
+
+
+def test_a_failing_model_call_keeps_the_closes_before_it(ccfg, cstate, monkeypatch, no_data):
+    """A stop hit before the model is asked is logged and saved at once: an unusable answer afterwards used to
+    lose it from trades.csv."""
+    account.open_position(ccfg, cstate, "XBTEUR", "long", 0.01, 50000, 48000, 55000, NOW)
+    monkeypatch.setattr(cycle, "load_markets", fake_markets({"XBTEUR": 47000.0, "ETHEUR": 3000.0, "SOLEUR": 150.0}))
+    monkeypatch.setattr(cycle.guard, "fetch_candles", lambda *a: ([], 1))
+
+    def broken(cfg, payload):
+        raise RuntimeError("unusable answer")
+
+    with pytest.raises(RuntimeError):
+        cycle.daily_cycle(ccfg, cstate, now=NOW + timedelta(hours=1), ask=broken)
+    assert [r["reason"] for r in journal.read_trades()] == ["STOP"]
+    assert account.load_state(ccfg)["positions"] == {}  # saved with it: a rerun cannot close it twice
 
 
 def test_offline_cycle_needs_no_network(ccfg, cstate):

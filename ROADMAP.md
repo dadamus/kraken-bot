@@ -83,9 +83,9 @@ Not committed - each one is picked only if the data points to it.
 
 ## Not planned
 
-- Leverage, futures, margin or short selling in this bot. The question is studied separately and on paper
-  only by the CFD paper add-on (`kraken_cfd/`), which never sends orders; its results are read at the same
-  evaluation, not acted on.
+- Leverage, futures, margin or short selling in this bot. The question is studied separately by the CFD
+  add-on (`kraken_cfd/`): on paper, shadowed on Kraken Derivatives (orders checked, not sent) and, only
+  after the evaluation and with two separate opt-ins, live there.
 - Withdrawals or any other money movement by the bot (the API key never gets those permissions).
 - High-frequency trading or reacting within seconds - the model's horizon is 1-3 days. The hourly scale is
   studied separately and on paper only by the intraday paper add-on (`kraken_intraday/`): fixed hourly

@@ -11,3 +11,15 @@ configuration:
   refresh_minutes:
     name: Refresh interval (minutes)
     description: How often stops, take-profits, the overnight swap and the margin stop-out are checked. No model calls.
+  execution:
+    name: Execution
+    description: paper = simulation only. shadow = simulation, plus the orders Kraken Derivatives would need are checked against Kraken and logged (shadow.csv), never sent. live = real orders on Kraken Derivatives (also needs "mode" set to "live" in config.json).
+  kraken_futures_api_key:
+    name: Kraken derivatives API key
+    description: Optional in shadow mode (Read Only is enough - checks the wallet and the key), required for live (Full Access). Made in the Kraken derivatives account under Settings > API, separate from the spot key. Never give it withdrawal rights.
+  kraken_futures_api_secret:
+    name: Kraken derivatives API secret
+    description: The private key shown once when the derivatives key is created.
+  live_smoke_test:
+    name: Live smoke test (real money)
+    description: When switched on, the add-on runs one test at start - buys and sells 0.0001 BTC on PF_XBTUSD (about 5 EUR, fees of a few cents) with every order type live mode uses - and reports the result. Needs a Full Access key. Switch it off afterwards; to repeat the test, restart once with it off, then on.

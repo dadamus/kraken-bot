@@ -5,7 +5,7 @@ import json
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import account, journal, settings, texts
+from . import account, journal, settings, shadow, texts
 from .texts import t
 
 INGRESS_PROXY = "172.30.32.2"  # Home Assistant's ingress proxy
@@ -58,7 +58,7 @@ def td(x, cls=""):
     return f'<td class="{cls}">{x}</td>'
 
 
-def render(cfg, state, calls, trades, opts):
+def render(cfg, state, calls, trades, opts, mode="paper", shadow_rows=()):
     prices = state.get("last_prices") or {}
     eq = account.equity(cfg, state, prices)
     level = account.margin_level(cfg, state, prices)
@@ -74,7 +74,9 @@ def render(cfg, state, calls, trades, opts):
              (t("margin_level"), f"{level:,.0f}%" if level else "-"),
              (t("costs"), f"{costs.get('spread_eur', 0):,.2f} {t('spread')} + {costs.get('swap_eur', 0):,.2f} {t('swap')}"),
              (t("model_cost"), f"{usage['cost_usd']:.2f} USD" if usage else "-")]
-    out = [f"<h1>{esc(t('title'))}</h1><p class='sub'>{esc(t('subtitle'))} · {esc(t('updated'))}"
+    title = t("title_live") if mode == "live" else t("title")
+    sub = t("subtitle_live") if mode == "live" else t("subtitle_shadow") if mode == "shadow" else t("subtitle")
+    out = [f"<h1>{esc(title)}</h1><p class='sub'>{esc(sub)} · {esc(t('updated'))}"
            f" {esc(state.get('last_refresh') or '-')}</p>",
            '<div class="tiles">' + "".join(f'<div class="tile"><span>{esc(k)}</span><b>{v}</b></div>'
                                           for k, v in tiles) + "</div>"]
@@ -126,16 +128,65 @@ def render(cfg, state, calls, trades, opts):
         out.append(f'<div class="note">{esc(t("brier"))}: <b>{esc(p["brier"] if p["brier"] is not None else "-")}</b>'
                    f' (n={p["n"]}), {esc(t("hit_rate"))} {esc(p["hit_rate_pct"] if p["hit_rate_pct"] is not None else "-")}%.'
                    f'{base}</div>')
+    if mode == "shadow":
+        out += kraken_section(cfg, state, ev, shadow_rows)
     return (f"<!doctype html><html lang='{texts.LANG}'><head><meta charset='utf-8'>"
             "<meta name='viewport' content='width=device-width,initial-scale=1'><meta http-equiv='refresh' content='60'>"
-            f"<title>CFD paper</title><style>{CSS}</style></head><body><main>{''.join(out)}</main></body></html>")
+            f"<title>{esc(title)}</title><style>{CSS}</style></head><body><main>{''.join(out)}</main></body></html>")
+
+
+def kraken_section(cfg, state, ev, shadow_rows):
+    """Shadow mode: the closed paper trades with Kraken's costs, the contracts' spread and funding next to the
+    paper's, the wallet check and the latest shadow orders."""
+    k = state.get("kraken") or {}
+    out = [f"<h2>{esc(t('kraken'))}</h2>"]
+    acc, err = k.get("account"), k.get("error")
+    if acc and acc.get("available_margin_eur") is not None:
+        out.append(f'<div class="note">{esc(t("kraken_wallet", value=acc["portfolio_eur"], free=acc["available_margin_eur"], at=acc["checked"]))}</div>')
+    if err:
+        out.append(f'<div class="note">{esc(t("kraken_error", at=err["at"], message=err["message"]))}</div>')
+    rep = (ev or {}).get("kraken")
+    if rep:
+        tot = rep["total"]
+        rows = [[td(tot["n"]), td(signed(tot["paper_net_eur"], " EUR")), td(signed(tot["kraken_net_eur"], " EUR")),
+                 td(f"{tot['fee_eur']:.2f} {esc(t('kraken_fee'))}, {tot['spread_eur']:.2f} {esc(t('spread'))},"
+                    f" {tot['funding_eur']:.2f} {esc(t('kraken_funding'))}")]]
+        out.append(f"<p class='sub'>{esc(t('kraken_repriced'))}</p>")
+        out.append(table([t("n"), t("kraken_paper"), t("kraken_net"), t("costs")], rows, "-"))
+        if tot["not_tradable_n"]:
+            out.append(f'<div class="note">{esc(t("kraken_not_tradable", n=tot["not_tradable_n"], pairs=", ".join(tot["not_tradable_pairs"]), net=tot["not_tradable_paper_net_eur"]))}</div>')
+    stats = shadow.quote_stats(cfg, state)
+    if stats:
+        rows = [[td(esc(sym) + ("" if q["traded"] else " *")), td(esc(q["pair"])), td(esc(q["avg_spread_pct"])),
+                 td(esc(q["paper_spread_pct"])), td(esc(q["avg_funding_long_pct_day"])),
+                 td(esc((q["paper_swap_pct_day"] or {}).get("long"))), td(q["samples"])] for sym, q in stats.items()]
+        out.append(table([t("kraken_contract"), t("pair"), t("kraken_avg_spread") + " %", t("kraken_paper_spread") + " %",
+                          t("kraken_funding_day"), t("kraken_paper_swap"), "n"], rows, "-"))
+    if shadow_rows:
+        rows = [[td(esc(r["date"])), td(esc(r["kind"])), td(esc(r["pair"])), td(esc(r["symbol"])), td(esc(r["side"])),
+                 td(esc(r["size"])), td(esc(r["contract_price"])), td(esc(r["slippage_bps"])),
+                 td(esc(r["ok"])), td(esc(r["why"]), "wrap")] for r in reversed(list(shadow_rows)[-15:])]
+        out.append(f"<p class='sub'>{esc(t('kraken_orders'))}</p>")
+        out.append(table([t("date"), t("kraken_kind"), t("pair"), t("kraken_contract"), t("side"), t("kraken_size"),
+                          t("kraken_price"), t("kraken_slip"), t("kraken_ok"), t("kraken_why")], rows, "-"))
+    return out
+
+
+def current():
+    """config.json and the execution mode; live (both opt-ins) shows the live files."""
+    cfg = settings.load_config()
+    mode = settings.execution(cfg)
+    if mode == "live" and cfg.get("mode") == "live":
+        settings.use_live_files()
+    return cfg, mode
 
 
 def page(opts):
-    cfg = settings.load_config()
+    cfg, mode = current()
     texts.set_language(cfg)
     state = account.load_state(cfg)
-    return render(cfg, state, journal.read_calls(), journal.read_trades(), opts)
+    return render(cfg, state, journal.read_calls(), journal.read_trades(), opts, mode,
+                  shadow.read() if mode == "shadow" else ())
 
 
 def handler(opts, only_from=None):
@@ -145,7 +196,7 @@ def handler(opts, only_from=None):
                 return self.send_error(403)
             try:
                 if self.path.split("?")[0].endswith("/api/state"):
-                    body, ctype = json.dumps(account.load_state(settings.load_config())).encode(), "application/json"
+                    body, ctype = json.dumps(account.load_state(current()[0])).encode(), "application/json"
                 else:
                     body, ctype = page(opts).encode("utf-8"), "text/html; charset=utf-8"
             except Exception as e:  # the page must not take the add-on down

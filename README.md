@@ -319,11 +319,12 @@ Taxes: selling crypto is usually a taxable event. Keep your Kraken trade history
 
 ## Experiment: CFD paper add-on (long and short)
 
-The same repository holds a second, **paper-only** add-on, **Kraken CFD paper** (`kraken_cfd/`). It asks the
-model once a day for **long / short / flat** on bitcoin, gold and EUR/USD, with the same data sources, and runs the calls on a *simulated* CFD
-account with leverage, spread, overnight swap and a margin stop-out. It never sends an order anywhere and
-does not touch the Kraken bot. Its purpose is to measure whether the short side and leverage would add
-anything after costs. Install it from the same add-on store entry; details in
+The same repository holds a second add-on, **Kraken CFD paper** (`kraken_cfd/`), paper by default. It asks the
+model once a day for **long / short / flat** on bitcoin, gold and crude oil, with the same data sources, and runs the calls on a *simulated* CFD
+account with leverage, spread, overnight swap and a margin stop-out. It does not touch the Kraken bot. Its
+purpose is to measure whether the short side and leverage would add anything after costs. Optionally it
+shadows every step on Kraken Derivatives (the orders checked, never sent, and the paper trades re-priced
+with Kraken's costs), and with two separate opt-ins it can trade there for real. Install it from the same add-on store entry; details in
 [`kraken_cfd/DOCS.md`](kraken_cfd/DOCS.md).
 
 ## Experiment: intraday paper add-on (hourly rules)
