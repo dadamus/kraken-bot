@@ -1,7 +1,7 @@
 # Home Assistant add-on definition. Paper by default; real orders only with execution: live AND "mode": "live"
 # in config.json (see DOCS.md).
 name: Kraken CFD paper
-version: "0.6.0"
+version: "0.6.1"
 slug: kraken_cfd
 description: "Claude calls long / short / flat on bitcoin, gold and crude oil; a simulated CFD account executes them, optionally shadowed on Kraken Derivatives (orders checked, not sent) or live"
 url: https://github.com/dadamus/kraken-bot

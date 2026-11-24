@@ -135,6 +135,15 @@ def test_paper_mode_does_not_touch_kraken(scfg, cstate, monkeypatch, no_data):
     assert shadow.read() == [] and "kraken" not in cstate
 
 
+def test_an_empty_wallet_is_a_note_not_an_invalid_order(scfg, cstate, kraken):
+    """Shadow mode runs before the wallet is funded; the paper account sizes from its own virtual equity."""
+    cstate["kraken"] = {"account": {"available_margin_eur": 0.0}}
+    before = shadow.snapshot(cstate)
+    account.open_position(scfg, cstate, "XBTEUR", "long", 0.01, 55000, 50600, 64000, NOW, PRICES)
+    r = shadow.record(scfg, cstate, before, [], PRICES, NOW)[0]
+    assert r["ok"] and r["why"] == "note: margin 55.00 EUR, the derivatives wallet has 0.00 EUR free"
+
+
 def test_wallet_check_with_a_read_only_key(scfg, cstate, monkeypatch):
     fake = FakeFutures().install(monkeypatch, keys=True)
     acc = shadow.check_account(scfg, cstate, PRICES, NOW)

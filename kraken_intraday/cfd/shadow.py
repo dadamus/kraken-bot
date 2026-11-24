@@ -80,9 +80,11 @@ def order_row(cfg, state, step, specs, prices, now, ticker):
     if kind == "open" and spec["max_leverage"]:
         margin = account.notional_eur(cfg, pair, size, spot, prices) / spec["max_leverage"]
         row["margin_eur"] = round(margin, 2)
+        # only a note: the paper account sizes from its own (virtual) equity, live would size from the wallet's,
+        # so an empty or smaller wallet says nothing about whether the order itself is valid
         free = ((state.get("kraken") or {}).get("account") or {}).get("available_margin_eur")
         if free is not None and margin > free:
-            why.append(f"margin {margin:.2f} EUR above the wallet's free margin {free:.2f} EUR")
+            why.append(f"note: margin {margin:.2f} EUR, the derivatives wallet has {free:.2f} EUR free")
         lev = account.leverage(cfg, pair)
         if lev > spec["max_leverage"]:
             why.append(f"note: paper leverage {lev:g} > Kraken's {spec['max_leverage']:g} (more margin)")

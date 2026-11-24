@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.1
+- Shadow mode: a derivatives wallet with less free margin than an order needs (empty before it is funded) is
+  a note on the shadow order, no longer "not OK". The paper account sizes from its own virtual equity, live
+  mode would size from the wallet's, so the comparison says nothing about whether the order itself is valid.
+
 ## 0.6.0
 - **Crude oil instead of EUR/USD.** The third instrument is WTI crude oil (`WTIUSD`): Kraken has no EUR/USD
   for EEA clients, so EUR/USD could never go live there. Of the contracts Kraken offers in the EEA, oil is the
