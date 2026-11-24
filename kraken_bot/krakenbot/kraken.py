@@ -1,4 +1,4 @@
-"""Private Kraken API: live balance, entry prices, deposits/withdrawals and market orders."""
+"""Private Kraken API: live balance, entry prices, deposits/withdrawals/transfers and market orders."""
 import base64
 import hashlib
 import hmac
@@ -18,6 +18,11 @@ from .i18n import t
 # look like coins from outside the history and would get the manual entry price (see sync_live). An order not
 # in the history after this long is taken as never filled.
 PENDING_BUY_MAX_S = 1800
+
+# Ledger entries that move money into or out of the spot balance without trading. "transfer" is a move between
+# the account's own wallets: spot <-> derivatives (subtypes spottofutures / spotfromfutures), spot <-> staking.
+# The bot only sees the spot balance, so such a move looks like a loss or a profit unless it is counted here.
+FLOW_TYPES = ("deposit", "withdrawal", "transfer")
 
 
 def kraken_private(path, data):
@@ -69,28 +74,29 @@ def kraken_trades(max_pages=10):
 
 
 def kraken_ledger(since, max_pages=10):
-    """Deposits and withdrawals booked after `since` (unix time), oldest first."""
-    entries = []
-    for kind in ("deposit", "withdrawal"):
-        ofs = 0
-        for _ in range(max_pages):  # Kraken returns 50 entries per page
-            res = kraken_private("/0/private/Ledgers", {"type": kind, "start": since, "ofs": ofs})
-            page = list(res["ledger"].values())
-            entries += page
-            ofs += len(page)
-            if not page or ofs >= int(res["count"]):
-                break
+    """All ledger entries booked after `since` (unix time), oldest first. One query for every type ("all" is
+    Kraken's default filter): apply_cash_flows picks the FLOW_TYPES, and the trades in between keep the
+    window (ledger_checked) short."""
+    entries, ofs = [], 0
+    for _ in range(max_pages):  # Kraken returns 50 entries per page
+        res = kraken_private("/0/private/Ledgers", {"type": "all", "start": since, "ofs": ofs})
+        page = list(res["ledger"].values())
+        entries += page
+        ofs += len(page)
+        if not page or ofs >= int(res["count"]):
+            break
     return sorted(entries, key=lambda x: float(x["time"]))
 
 
 def apply_cash_flows(state, info, prices, entries):
-    """Moves the return/drawdown reference (start_eur) by money deposited or withdrawn, so a deposit
-    is not counted as profit. Coins are valued at the current price; other assets are ignored."""
+    """Moves the return/drawdown reference (start_eur) by money deposited, withdrawn or moved to / from
+    another wallet of the account (FLOW_TYPES), so a deposit is not counted as profit nor a transfer to the
+    derivatives wallet as a loss. Coins are valued at the current price; other assets are ignored."""
     quote = next(iter(info.values()))["quote"]
     value = {quote: 1.0, **{i["base"]: prices[p] for p, i in info.items()}}
     for x in entries:
         state["ledger_checked"] = max(state["ledger_checked"], float(x["time"]))
-        if x["type"] not in ("deposit", "withdrawal") or x["asset"] not in value:
+        if x["type"] not in FLOW_TYPES or x["asset"] not in value:
             continue
         amount = float(x["amount"]) - float(x.get("fee") or 0)  # how much the balance changed
         eur = amount * value[x["asset"]]
@@ -102,16 +108,18 @@ def apply_cash_flows(state, info, prices, entries):
                 hold["coins"][pair] = hold["coins"].get(pair, 0.0) + amount
             else:
                 hold["eur"] += amount
+        sub = x.get("subtype") or ""  # e.g. spottofutures: kept so the log shows which wallet it went to
         state.setdefault("cash_flows", []).append(
             {"time": datetime.fromtimestamp(float(x["time"])).strftime("%Y-%m-%d %H:%M"), "ts": float(x["time"]),
-             "type": x["type"], "asset": x["asset"], "amount": amount, "eur": round(eur, 2)})
-        print(t("cash_flow_line", kind=t(f"cash_flow_{x['type']}"), amount=amount, asset=x["asset"],
-                eur=eur, start=state["start_eur"]))
+             "type": x["type"], **({"subtype": sub} if sub else {}), "asset": x["asset"], "amount": amount,
+             "eur": round(eur, 2)})
+        kind = t(f"cash_flow_{x['type']}") + (f" ({sub})" if sub else "")
+        print(t("cash_flow_line", kind=kind, amount=amount, asset=x["asset"], eur=eur, start=state["start_eur"]))
 
 
 def holdings_at(state, info, trades, since):
     """What the account held at `since` (unix time): the current balance with the later trades and the
-    recorded deposits / withdrawals undone. Used once, for a state from before the benchmark existed."""
+    recorded deposits / withdrawals / transfers undone. Used once, for a state from before the benchmark existed."""
     coins = {p: state["positions"][p]["coin"] for p in info}
     eur = state["eur"]
     for x in trades:

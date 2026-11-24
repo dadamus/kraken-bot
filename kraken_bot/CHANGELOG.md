@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.11.4
+- A transfer between the account's own wallets is no longer a loss or a profit. Kraken books moving EUR or
+  coins to the derivatives wallet (or to staking) as a `transfer` (subtype `spottofutures`,
+  `spotfromfutures`, ...), not as a withdrawal, and the bot only counted deposits and withdrawals: funding
+  the derivatives wallet with 300 EUR would have shown up as a 300 EUR loss and could have hit the drawdown
+  halt. Transfers now move the return reference like a deposit or withdrawal, appear in `cash_flows` with
+  their `subtype` and in the log as "Transfer between wallets (spottofutures)". The ledger is read in one
+  query for all entry types (was one per type); only deposits, withdrawals and transfers of EUR and the
+  configured coins count. Not yet checked against a real transfer: look at the log line after the first one.
+
 ## 2.11.3
 - Fresher US market data for the model: Nasdaq 100, S&P 500, VIX, the 10-year yield and the dollar index now
   come from Yahoo Finance's chart API (no key), FRED is only the fallback. FRED publishes its closes a day or

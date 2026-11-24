@@ -132,7 +132,8 @@ def fake_kraken(monkeypatch):
             if k.get("ledger_error"):
                 raise RuntimeError("Kraken: ['EGeneral:Permission denied']")
             k["ledger_calls"].append(data)
-            rows = [x for x in k["ledger"] if x["type"] == data["type"] and float(x["time"]) > data["start"]]
+            rows = [x for x in k["ledger"]
+                    if data["type"] in ("all", x["type"]) and float(x["time"]) > data["start"]]
             page = rows[data["ofs"]:data["ofs"] + 50]
             return {"ledger": {f"L{data['ofs'] + n}": x for n, x in enumerate(page)}, "count": len(rows)}
         if path.endswith("AddOrder"):
@@ -166,8 +167,8 @@ def test_sync_uses_real_balance_and_keeps_stop(cfg, fake_kraken):
     assert state["start_eur"] == start  # later syncs leave it alone
 
 
-def ledger(kind, asset, amount, at, fee="0"):
-    return {"type": kind, "asset": asset, "amount": str(amount), "fee": fee, "time": at}
+def ledger(kind, asset, amount, at, fee="0", subtype=""):
+    return {"type": kind, "subtype": subtype, "asset": asset, "amount": str(amount), "fee": fee, "time": at}
 
 
 def test_deposit_and_withdrawal_move_reference_not_profit(cfg, fake_kraken, capsys):
@@ -194,6 +195,30 @@ def test_deposit_and_withdrawal_move_reference_not_profit(cfg, fake_kraken, caps
     start = state["start_eur"]
     kraken.sync_live(cfg, state, {"XBTEUR": 70000.0})  # the same entries are not counted twice
     assert state["start_eur"] == start
+
+
+def test_transfer_to_the_derivatives_wallet_is_not_a_loss(cfg, fake_kraken, capsys):
+    """Spot margin shares the bot's balance, derivatives have their own wallet: funding it moves EUR out of the
+    spot balance the bot sees. Kraken books that as a transfer, not a withdrawal."""
+    cfg["pairs"] = ["XBTEUR"]
+    state = make_state()
+    kraken.sync_live(cfg, state, {"XBTEUR": 70000.0})  # reference 750.5 (50.5 EUR + 0.01 BTC)
+    since, start = state["ledger_checked"], state["start_eur"]
+
+    fake_kraken["ledger"] = [ledger("trade", "ZEUR", -10, since + 5),  # the bot's own buy: its result, not a flow
+                             ledger("trade", "XXBT", 10 / 70000, since + 5),
+                             ledger("transfer", "ZEUR", -40, since + 10, subtype="spottofutures"),
+                             ledger("transfer", "ZEUR", 15, since + 20, subtype="spotfromfutures")]
+    fake_kraken["balance"] = {"ZEUR": "15.5", "XXBT": str(0.01 + 10 / 70000)}
+    kraken.sync_live(cfg, state, {"XBTEUR": 70000.0})
+
+    assert fake_kraken["ledger_calls"][-1]["type"] == "all"  # one query, the flows are picked here
+    assert state["start_eur"] == pytest.approx(start - 25)
+    assert portfolio.equity_of(state, {"XBTEUR": 70000.0}) == pytest.approx(state["start_eur"])  # no fake loss
+    assert [(f["type"], f["subtype"], f["amount"]) for f in state["cash_flows"]] == [
+        ("transfer", "spottofutures", -40), ("transfer", "spotfromfutures", 15)]
+    assert state["ledger_checked"] == since + 20
+    assert "Transfer between wallets (spottofutures): -40 ZEUR" in capsys.readouterr().out
 
 
 def test_existing_state_starts_tracking_flows_from_now(cfg, fake_kraken):

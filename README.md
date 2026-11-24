@@ -300,9 +300,10 @@ conclusions; the pairs are strongly correlated.
 In live mode the bot reads the real EUR and coin balances at the start of every cycle and refresh, and
 computes the entry price from the trade history (last 500 trades). Live state and log are separate:
 `state_live.json`, `decisions_live.csv`. The return is measured from the equity at the first sync.
-Deposits and withdrawals (EUR and coins of the configured pairs) are read from the Kraken ledger and move
-that reference point, so money you add is not counted as profit and money you take out is not a loss
-(nor does it trigger the drawdown halt). This needs the **Query Ledger Entries** permission; without it
+Deposits, withdrawals and transfers to or from the account's other wallets (Kraken Derivatives, staking;
+EUR and coins of the configured pairs) are read from the Kraken ledger and move that reference point, so
+money you add is not counted as profit and money you take out or move away is not a loss (nor does it
+trigger the drawdown halt). This needs the **Query Ledger Entries** permission; without it
 the log warns on every sync. Recorded flows are kept in `cash_flows` in `state_live.json`.
 
 **Important:** the bot treats the whole EUR balance and all coins of the configured pairs on the account
