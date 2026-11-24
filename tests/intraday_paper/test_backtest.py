@@ -32,7 +32,9 @@ def test_offline_backtest_replays_the_rules_book(icfg):
     result = backtest.run(icfg, offline=True)
     a = result["trades"]["all"]
     assert a["n"] > 0 and a["gross_eur"] == pytest.approx(a["net_eur"] + a["spread_eur"] + a["swap_eur"], abs=0.02)
-    assert result["equity_eur"] == pytest.approx(1000 + a["net_eur"], abs=0.05)  # everything closed at the end
+    # everything closed at the end; every trade's net_eur is rounded to the cent, so the sum may be off by up to
+    # half a cent per trade (with ~90 trades on the offline data, a fixed 0.05 failed now and then)
+    assert result["equity_eur"] == pytest.approx(1000 + a["net_eur"], abs=0.005 * a["n"] + 0.01)
     assert set(result["trades"]["by_strategy"]) <= {"breakout", "reversion"}
     assert sum(result["regime_days"]["XBTEUR"].values()) in (120, 121)  # 2880 hours over UTC days
     assert json.loads(settings.BACKTEST_FILE.read_text())["date"] == result["date"]
